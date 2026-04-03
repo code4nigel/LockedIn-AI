@@ -2,86 +2,132 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>LockedIn | 7-Star Proctor</title>
+    <title>LockedIn | 7-Star Editor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <style>
-        #container { height: 400px; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
-        .violation-glow { box-shadow: 0 0 25px #ef4444; border: 2px solid #ef4444 !important; }
+        #container { height: calc(100vh - 350px); min-height: 400px; border-top: 1px solid #27272a; }
+        .violation-glow { box-shadow: inset 0 0 30px #ef4444; border: 1px solid #ef4444 !important; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+        .pane-height { height: calc(100vh - 80px); }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col">
+<body class="bg-[#0a0a0a] text-zinc-200 font-sans h-screen overflow-hidden">
 
-    <header class="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900">
-        <div class="flex items-center gap-4">
-            <h1 class="text-xl font-bold text-blue-500">LOCKED<span class="text-white">IN</span></h1>
-            <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-800 border border-zinc-700 text-xs rounded px-2 py-1 outline-none cursor-pointer">
-                <option value="python">Python 3</option>
-                <option value="java">Java (OpenJDK 15)</option>
-            </select>
+    <!-- Navbar -->
+    <header class="h-14 border-b border-zinc-800 flex justify-between items-center px-6 bg-[#0f0f0f]">
+        <div class="flex items-center gap-6">
+            <h1 class="text-lg font-black tracking-tighter text-blue-500">LOCKED<span class="text-white">IN</span></h1>
+            <div id="badge" class="px-3 py-1 rounded bg-zinc-900 text-[10px] font-bold border border-zinc-800 uppercase tracking-widest text-zinc-500">System Offline</div>
         </div>
         <div class="flex items-center gap-4">
-            <div id="badge" class="px-4 py-1 rounded-full bg-zinc-800 text-[10px] font-bold border border-zinc-700 uppercase">Inactive</div>
-            <button id="toggleBtn" onclick="toggleTest()" class="px-4 py-1 rounded bg-blue-600 text-sm font-bold hover:bg-blue-500 transition">Start Test</button>
+            <button id="toggleBtn" onclick="toggleTest()" class="px-5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-xs font-bold transition">Start Test</button>
         </div>
     </header>
 
-    <main class="flex-1 flex gap-4 p-4 overflow-hidden">
-        <div class="flex-[2] flex flex-col gap-4">
-            <div id="editor-ui" class="opacity-50 pointer-events-none transition-all">
-                <div class="bg-zinc-900 p-4 rounded-xl mb-2 border border-zinc-800">
-                    <div class="flex justify-between items-center">
-                        <h2 id="q-title" class="text-blue-400 font-bold">Awaiting Start...</h2>
-                        <span id="q-diff" class="text-[10px] text-zinc-500 bg-black/30 px-2 py-0.5 rounded">LV 0</span>
-                    </div>
-                    <p id="q-desc" class="text-zinc-400 text-xs mt-1 italic">Click "Start Test" to begin.</p>
+    <main class="flex pane-height p-2 gap-2">
+        <!-- Left Pane: Question Section -->
+        <div class="w-[40%] bg-[#0f0f0f] border border-zinc-800 rounded-lg flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
+                <span class="text-xs font-bold uppercase tracking-widest text-zinc-500">Question</span>
+                <span id="q-diff" class="text-[10px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">Lv 0</span>
+            </div>
+            <div id="question-area" class="flex-1 overflow-y-auto p-6 opacity-40 transition-opacity">
+                <h2 id="q-title" class="text-2xl font-bold mb-4 text-white">Select "Start Test"</h2>
+                <div id="q-desc-wrapper">
+                    <p id="q-desc" class="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap">Your coding challenge will appear here once the proctored session begins.</p>
                 </div>
-                <div id="container"></div>
+                <button id="expand-btn" onclick="toggleDesc()" class="hidden mt-4 text-blue-500 text-xs font-bold hover:underline">Show More</button>
+                
+                <!-- Example Block (Static for now) -->
+                <div id="example-block" class="hidden mt-8">
+                    <h3 class="text-xs font-bold uppercase text-zinc-600 mb-2">Examples</h3>
+                    <div class="bg-zinc-900/50 p-3 rounded border border-zinc-800 font-mono text-[11px]">
+                        <span class="text-blue-400">Input:</span> nums = [2,7,11,15], target = 9<br>
+                        <span class="text-green-400">Output:</span> [0,1]
+                    </div>
+                </div>
             </div>
             
-            <div class="grid grid-cols-2 gap-4">
-                <textarea id="stdin" class="bg-zinc-900 border border-zinc-800 rounded p-2 text-xs font-mono h-20 outline-none focus:border-blue-500" placeholder="Custom Input (one per line)..."></textarea>
-                <div class="flex items-end justify-end">
-                    <button id="runBtn" onclick="runCode()" class="px-10 py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-500 transition shadow-lg">Run Code</button>
-                </div>
+            <!-- Camera Feed Integrated into Left Bottom -->
+            <div class="h-40 border-t border-zinc-800 relative bg-black overflow-hidden">
+                <img id="feed" src="" class="w-full h-full object-cover hidden">
+                <div id="cam-off" class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-zinc-800 uppercase tracking-widest">Camera Inactive</div>
             </div>
         </div>
 
-        <div class="flex-1 flex flex-col gap-4">
-            <div class="bg-zinc-900 rounded-xl aspect-video relative border border-zinc-800 overflow-hidden">
-                <img id="feed" src="" class="w-full h-full object-cover hidden">
-                <div id="off" class="absolute inset-0 flex items-center justify-center text-zinc-700 text-[10px] font-bold tracking-widest uppercase">Cam Offline</div>
-            </div>
-            <div class="flex-1 bg-black rounded-xl border border-zinc-800 p-4 font-mono text-[11px] overflow-y-auto">
-                <div class="text-zinc-600 border-b border-zinc-900 mb-2 flex justify-between uppercase">
-                    <span>Console Output</span>
-                    <span id="exec-status">Idle</span>
+        <!-- Right Pane: Editor & Console -->
+        <div class="flex-1 flex flex-col gap-2">
+            <!-- Top: Editor -->
+            <div class="flex-1 bg-[#0f0f0f] border border-zinc-800 rounded-lg flex flex-col overflow-hidden" id="editor-wrapper">
+                <div class="h-10 border-b border-zinc-800 flex justify-between items-center px-4 bg-zinc-900/50">
+                    <div class="flex gap-2">
+                        <button class="text-[11px] font-bold text-blue-400 border-b-2 border-blue-500 px-2 h-10">Solution.py</button>
+                    </div>
+                    <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-800 border border-zinc-700 text-[10px] rounded px-2 py-1 outline-none cursor-pointer text-zinc-300">
+                        <option value="python">Python 3</option>
+                        <option value="java">Java (OpenJDK 15)</option>
+                    </select>
                 </div>
-                <pre id="console" class="text-zinc-400 whitespace-pre-wrap">Ready...</pre>
+                <div id="container"></div>
+            </div>
+
+            <!-- Bottom: Console & Stdin -->
+            <div class="h-56 bg-[#0f0f0f] border border-zinc-800 rounded-lg flex flex-col overflow-hidden">
+                <div class="h-10 border-b border-zinc-800 flex justify-between items-center px-4 bg-zinc-900/50">
+                    <div class="flex gap-4">
+                        <button onclick="switchTab('console')" id="tab-console" class="text-[11px] font-bold text-blue-400 border-b-2 border-blue-500 h-10">Console Output</button>
+                        <button onclick="switchTab('stdin')" id="tab-stdin" class="text-[11px] font-bold text-zinc-500 h-10">Custom Input (Stdin)</button>
+                    </div>
+                    <button id="runBtn" onclick="runCode()" class="bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold px-6 py-1.5 rounded transition shadow-lg opacity-50 cursor-not-allowed" disabled>Run Code</button>
+                </div>
+                <div class="flex-1 relative p-4 font-mono text-[11px] bg-black">
+                    <pre id="console-out" class="text-zinc-400 whitespace-pre-wrap">Ready...</pre>
+                    <textarea id="stdin-field" class="absolute inset-0 bg-[#0a0a0a] p-4 text-zinc-300 outline-none hidden" placeholder="Enter standard input here (one per line)..."></textarea>
+                </div>
             </div>
         </div>
     </main>
 
     <script>
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        let editor, testing = false, interval;
+        let editor, testing = false, currentTab = 'console';
 
         const boilerplates = {
-            python: "def solution():\n    # Type your code\n    print('Hello Python')\n\nsolution()",
+            python: "def solution():\n    # Type code here\n    print('Hello World')\n\nsolution()",
             java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello Java\");\n    }\n}"
         };
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('container'), {
                 value: boilerplates.python,
-                language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true
+                language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true, fontSize: 13,
+                minimap: { enabled: false }, padding: { top: 10 }
             });
         });
 
+        function switchTab(tab) {
+            currentTab = tab;
+            const con = document.getElementById('console-out');
+            const stdin = document.getElementById('stdin-field');
+            const tCon = document.getElementById('tab-console');
+            const tStd = document.getElementById('tab-stdin');
+
+            if(tab === 'console') {
+                con.classList.remove('hidden'); stdin.classList.add('hidden');
+                tCon.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+                tStd.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+            } else {
+                con.classList.add('hidden'); stdin.classList.remove('hidden');
+                tStd.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+                tCon.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+            }
+        }
+
         function changeLanguage() {
             const lang = document.getElementById('lang-select').value;
-            const model = editor.getModel();
-            monaco.editor.setModelLanguage(model, lang === 'python' ? 'python' : 'java');
+            monaco.editor.setModelLanguage(editor.getModel(), lang === 'python' ? 'python' : 'java');
             editor.setValue(boilerplates[lang] || boilerplates.python);
         }
 
@@ -90,14 +136,16 @@
             testing = !testing;
             if (testing) {
                 await fetch('/start_test');
-                btn.innerText = "Stop Test"; btn.classList.replace('bg-blue-600', 'bg-red-600');
+                btn.innerText = "Stop Session"; btn.classList.replace('bg-blue-600', 'bg-red-600');
                 document.getElementById('feed').src = "/video_feed?t=" + Date.now();
                 document.getElementById('feed').classList.remove('hidden');
-                document.getElementById('off').classList.add('hidden');
-                document.getElementById('editor-ui').classList.remove('opacity-50', 'pointer-events-none');
+                document.getElementById('cam-off').classList.add('hidden');
+                document.getElementById('question-area').classList.remove('opacity-40');
+                document.getElementById('runBtn').disabled = false;
+                document.getElementById('runBtn').classList.remove('opacity-50', 'cursor-not-allowed');
                 editor.updateOptions({ readOnly: false });
                 loadQuestion();
-                interval = setInterval(checkStatus, 1000);
+                setInterval(checkStatus, 1000);
             } else {
                 await fetch('/stop_test');
                 location.reload(); 
@@ -109,24 +157,33 @@
             const q = await res.json();
             document.getElementById('q-title').innerText = q.title;
             document.getElementById('q-desc').innerText = q.description;
-            document.getElementById('q-diff').innerText = "LV " + q.difficulty;
+            document.getElementById('q-diff').innerText = "Level " + q.difficulty;
+            document.getElementById('example-block').classList.remove('hidden');
+            // If description is long, show expand button
+            if(q.description.length > 200) document.getElementById('expand-btn').classList.remove('hidden');
         }
 
         async function checkStatus() {
+            if(!testing) return;
             const res = await fetch('/status');
             const data = await res.json();
             const badge = document.getElementById('badge');
+            const editorBox = document.getElementById('editor-wrapper');
+            
             badge.innerText = "PROCTOR: " + data.status;
-            badge.className = data.status === "SECURE" ? 
-                "px-4 py-1 rounded-full bg-green-900/30 text-green-400 text-[10px] border border-green-800" : 
-                "px-4 py-1 rounded-full bg-red-900/30 text-red-400 text-[10px] border border-red-800 font-bold";
-            document.getElementById('container').className = data.status === "VIOLATION" ? "violation-glow" : "";
+            if(data.status === "VIOLATION") {
+                badge.className = "px-3 py-1 rounded bg-red-900/30 text-[10px] font-bold border border-red-800 text-red-500";
+                editorBox.classList.add('violation-glow');
+            } else {
+                badge.className = "px-3 py-1 rounded bg-green-900/30 text-[10px] font-bold border border-green-800 text-green-500";
+                editorBox.classList.remove('violation-glow');
+            }
         }
 
         async function runCode() {
-            if (!testing) return;
             const runBtn = document.getElementById('runBtn');
-            const con = document.getElementById('console');
+            const con = document.getElementById('console-out');
+            switchTab('console');
             runBtn.disabled = true; runBtn.innerText = "Running...";
             
             const res = await fetch('/run_code', {
@@ -134,14 +191,13 @@
                 body: JSON.stringify({
                     code: editor.getValue(),
                     language: document.getElementById('lang-select').value,
-                    stdin: document.getElementById('stdin').value
+                    stdin: document.getElementById('stdin-field').value
                 })
             });
             const data = await res.json();
             con.innerText = data.stdout;
-            document.getElementById('exec-status').innerText = data.status.description;
             if (data.status.id === 3) {
-                con.innerText += "\n\n[SUCCESS] Level up!";
+                con.innerHTML += "\n\n<span class='text-green-500 font-bold'>[PASSED] Difficulty increased!</span>";
                 setTimeout(loadQuestion, 2000);
             }
             runBtn.disabled = false; runBtn.innerText = "Run Code";

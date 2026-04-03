@@ -13,8 +13,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
+# Import our custom logic
 from backend.ai_proctor.tracker import FaceTracker
-from backend.ai_proctor.audio_monitor import AudioMonitor
 from backend.ai_proctor.questions import get_question_by_difficulty
 
 app = Flask(__name__, 
@@ -55,22 +55,27 @@ def generate_frames():
             continue
         
         try:
-            # Match the return values of your tracker.py (faces, away)
-            faces, away = tracker.process_frame(frame)
+            # IMPORTANT: Your tracker.py returns (face_count, looking_away)
+            face_count, looking_away = tracker.process_frame(frame)
             
-            proctor_state["status"] = "SECURE" if (faces == 1 and not away) else "VIOLATION"
-            color = (0, 255, 0) if proctor_state["status"] == "SECURE" else (0, 0, 255)
+            # Proctoring logic
+            if face_count != 1 or looking_away:
+                proctor_state["status"] = "VIOLATION"
+                color = (0, 0, 255) # Red
+            else:
+                proctor_state["status"] = "SECURE"
+                color = (0, 255, 0) # Green
                 
             cv2.putText(frame, f"AI: {proctor_state['status']}", (10, 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
             if not ret: continue
             
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
         except Exception as e:
-            print(f"Frame Error: {e}")
+            print(f"Server Stream Error: {e}")
             continue
 
 @app.route('/video_feed')
@@ -84,15 +89,19 @@ def get_current_question():
 
 @app.route('/start_test')
 def start_test():
-    global camera
-    if not proctor_state["is_active"]:
-        camera = cv2.VideoCapture(0)
-        proctor_state["is_active"] = True
+    global camera, proctor_state
+    with camera_lock:
+        if not proctor_state["is_active"]:
+            camera = cv2.VideoCapture(0)
+            # Allow camera to stabilize
+            time.sleep(0.5)
+            proctor_state["is_active"] = True
+            proctor_state["violations"] = 0
     return jsonify({"status": "started"})
 
 @app.route('/stop_test')
 def stop_test():
-    global camera
+    global camera, proctor_state
     proctor_state["is_active"] = False
     time.sleep(0.3)
     with camera_lock:
@@ -114,8 +123,7 @@ def run_code():
 
     lang_map = {
         "python": {"n": "python", "v": "3.10.0"},
-        "java8": {"n": "java", "v": "1.8.0"},
-        "java15": {"n": "java", "v": "15.0.2"}
+        "java": {"n": "java", "v": "15.0.2"}
     }
     target = lang_map.get(lang, lang_map["python"])
 
@@ -132,15 +140,15 @@ def run_code():
         success = (run.get('code') == 0 and not run.get('stderr'))
         
         if success:
-            proctor_state["current_difficulty"] += 1
+            proctor_state["current_difficulty"] = min(10, proctor_state["current_difficulty"] + 1)
             
         return jsonify({
-            "stdout": output if output else "> No output.",
+            "stdout": output if output else "> Code executed successfully.",
             "status": {"id": 3 if success else 11, "description": "Accepted" if success else "Error"}
         })
     except Exception as e:
         return jsonify({"stdout": f"Server Error: {str(e)}", "status": {"id": 6}})
 
 if __name__ == '__main__':
-    threading.Thread(target=lambda: (time.sleep(2), webbrowser.open("http://127.0.0.1:5000"))).start()
+    threading.Thread(target=lambda: (time.sleep(2), webbrowser.open("http://127.0.0.1:5000")), daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)

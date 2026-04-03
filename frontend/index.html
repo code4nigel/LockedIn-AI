@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LockedIn | 7-Star Proctor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+    <style>
+        #container { height: 400px; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
+        .violation-glow { box-shadow: 0 0 25px #ef4444; border: 2px solid #ef4444 !important; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col">
+
+    <header class="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-blue-500">LOCKED<span class="text-white">IN</span></h1>
+            <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-800 border border-zinc-700 text-xs rounded px-2 py-1 outline-none cursor-pointer">
+                <option value="python">Python 3</option>
+                <option value="java">Java (OpenJDK 15)</option>
+            </select>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="badge" class="px-4 py-1 rounded-full bg-zinc-800 text-[10px] font-bold border border-zinc-700 uppercase">Inactive</div>
+            <button id="toggleBtn" onclick="toggleTest()" class="px-4 py-1 rounded bg-blue-600 text-sm font-bold hover:bg-blue-500 transition">Start Test</button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex gap-4 p-4 overflow-hidden">
+        <div class="flex-[2] flex flex-col gap-4">
+            <div id="editor-ui" class="opacity-50 pointer-events-none transition-all">
+                <div class="bg-zinc-900 p-4 rounded-xl mb-2 border border-zinc-800">
+                    <div class="flex justify-between items-center">
+                        <h2 id="q-title" class="text-blue-400 font-bold">Awaiting Start...</h2>
+                        <span id="q-diff" class="text-[10px] text-zinc-500 bg-black/30 px-2 py-0.5 rounded">LV 0</span>
+                    </div>
+                    <p id="q-desc" class="text-zinc-400 text-xs mt-1 italic">Click "Start Test" to begin.</p>
+                </div>
+                <div id="container"></div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <textarea id="stdin" class="bg-zinc-900 border border-zinc-800 rounded p-2 text-xs font-mono h-20 outline-none focus:border-blue-500" placeholder="Custom Input (one per line)..."></textarea>
+                <div class="flex items-end justify-end">
+                    <button id="runBtn" onclick="runCode()" class="px-10 py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-500 transition shadow-lg">Run Code</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col gap-4">
+            <div class="bg-zinc-900 rounded-xl aspect-video relative border border-zinc-800 overflow-hidden">
+                <img id="feed" src="" class="w-full h-full object-cover hidden">
+                <div id="off" class="absolute inset-0 flex items-center justify-center text-zinc-700 text-[10px] font-bold tracking-widest uppercase">Cam Offline</div>
+            </div>
+            <div class="flex-1 bg-black rounded-xl border border-zinc-800 p-4 font-mono text-[11px] overflow-y-auto">
+                <div class="text-zinc-600 border-b border-zinc-900 mb-2 flex justify-between uppercase">
+                    <span>Console Output</span>
+                    <span id="exec-status">Idle</span>
+                </div>
+                <pre id="console" class="text-zinc-400 whitespace-pre-wrap">Ready...</pre>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        let editor, testing = false, interval;
+
+        const boilerplates = {
+            python: "def solution():\n    # Type your code\n    print('Hello Python')\n\nsolution()",
+            java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello Java\");\n    }\n}"
+        };
+
+        require(['vs/editor/editor.main'], () => {
+            editor = monaco.editor.create(document.getElementById('container'), {
+                value: boilerplates.python,
+                language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true
+            });
+        });
+
+        function changeLanguage() {
+            const lang = document.getElementById('lang-select').value;
+            const model = editor.getModel();
+            monaco.editor.setModelLanguage(model, lang === 'python' ? 'python' : 'java');
+            editor.setValue(boilerplates[lang] || boilerplates.python);
+        }
+
+        async function toggleTest() {
+            const btn = document.getElementById('toggleBtn');
+            testing = !testing;
+            if (testing) {
+                await fetch('/start_test');
+                btn.innerText = "Stop Test"; btn.classList.replace('bg-blue-600', 'bg-red-600');
+                document.getElementById('feed').src = "/video_feed?t=" + Date.now();
+                document.getElementById('feed').classList.remove('hidden');
+                document.getElementById('off').classList.add('hidden');
+                document.getElementById('editor-ui').classList.remove('opacity-50', 'pointer-events-none');
+                editor.updateOptions({ readOnly: false });
+                loadQuestion();
+                interval = setInterval(checkStatus, 1000);
+            } else {
+                await fetch('/stop_test');
+                location.reload(); 
+            }
+        }
+
+        async function loadQuestion() {
+            const res = await fetch('/get_current_question');
+            const q = await res.json();
+            document.getElementById('q-title').innerText = q.title;
+            document.getElementById('q-desc').innerText = q.description;
+            document.getElementById('q-diff').innerText = "LV " + q.difficulty;
+        }
+
+        async function checkStatus() {
+            const res = await fetch('/status');
+            const data = await res.json();
+            const badge = document.getElementById('badge');
+            badge.innerText = "PROCTOR: " + data.status;
+            badge.className = data.status === "SECURE" ? 
+                "px-4 py-1 rounded-full bg-green-900/30 text-green-400 text-[10px] border border-green-800" : 
+                "px-4 py-1 rounded-full bg-red-900/30 text-red-400 text-[10px] border border-red-800 font-bold";
+            document.getElementById('container').className = data.status === "VIOLATION" ? "violation-glow" : "";
+        }
+
+        async function runCode() {
+            if (!testing) return;
+            const runBtn = document.getElementById('runBtn');
+            const con = document.getElementById('console');
+            runBtn.disabled = true; runBtn.innerText = "Running...";
+            
+            const res = await fetch('/run_code', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    code: editor.getValue(),
+                    language: document.getElementById('lang-select').value,
+                    stdin: document.getElementById('stdin').value
+                })
+            });
+            const data = await res.json();
+            con.innerText = data.stdout;
+            document.getElementById('exec-status').innerText = data.status.description;
+            if (data.status.id === 3) {
+                con.innerText += "\n\n[SUCCESS] Level up!";
+                setTimeout(loadQuestion, 2000);
+            }
+            runBtn.disabled = false; runBtn.innerText = "Run Code";
+        }
+    </script>
+</body>
+</html>

@@ -54,10 +54,15 @@
             <div id="editor-pane" class="flex-[2] flex flex-col overflow-hidden bg-[#0a0a0a]">
                 <div class="h-10 border-b border-zinc-800 flex justify-between items-center px-4 bg-[#0f0f0f]">
                     <span class="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">Solution</span>
-                    <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-900 border border-zinc-800 text-[10px] rounded px-2 py-1 outline-none text-zinc-400 cursor-pointer">
-                        <option value="python">Python 3</option>
-                        <option value="java">Java 15</option>
-                    </select>
+                    <div class="flex items-center gap-3">
+                        <button onclick="resetCode()" class="text-[10px] text-zinc-400 hover:text-white transition flex items-center gap-1" title="Reset Code">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Reset
+                        </button>
+                        <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-900 border border-zinc-800 text-[10px] rounded px-2 py-1 outline-none text-zinc-400 cursor-pointer">
+                            <option value="python">Python 3</option>
+                            <option value="java">Java 15</option>
+                        </select>
+                    </div>
                 </div>
                 <div id="monaco-anchor"></div>
             </div>
@@ -65,17 +70,15 @@
             <div id="console-pane" class="flex-1 min-h-[150px] flex flex-col overflow-hidden bg-[#0a0a0a]">
                 <div class="h-10 border-b border-zinc-800 flex justify-between items-center px-4 bg-[#0f0f0f]">
                     <div class="flex gap-4 h-full">
-                        <button onclick="switchTab('console')" id="t-console" class="text-[10px] font-bold text-blue-400 border-b-2 border-blue-500 h-full">Console</button>
-                        <button onclick="switchTab('stdin')" id="t-stdin" class="text-[10px] font-bold text-zinc-600 h-full">Input</button>
+                        <button class="text-[10px] font-bold text-blue-400 border-b-2 border-blue-500 h-full">Console</button>
                     </div>
                     <div class="flex items-center gap-4">
                         <span id="exec-status" class="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Idle</span>
-                        <button id="runBtn" onclick="runCode()" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold px-4 py-1.5 rounded transition disabled:opacity-30" disabled>Run Code</button>
+                        <button id="runBtn" onclick="runCode()" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold px-4 py-1.5 rounded transition disabled:opacity-30" disabled>Submit</button>
                     </div>
                 </div>
                 <div class="flex-1 relative bg-black overflow-hidden">
                     <pre id="console-out" class="absolute inset-0 p-4 text-zinc-400 font-mono text-[11px] overflow-y-auto whitespace-pre-wrap">Ready...</pre>
-                    <textarea id="stdin-field" class="absolute inset-0 bg-[#0a0a0a] p-4 text-zinc-300 outline-none hidden font-mono text-[11px]" placeholder="Stdin..."></textarea>
                 </div>
             </div>
         </div>
@@ -84,48 +87,30 @@
     <script>
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
         let editor, testing = false, statusTimer;
-        const boilerplates = {
-            python: "def containsDuplicate(nums):\n    seen = set()\n    for num in nums:\n        if num in seen:\n            return True\n        seen.add(num)\n    return False\n\nprint(containsDuplicate([2, 7, 11, 15]))\nprint(containsDuplicate([1, 2, 3, 1]))",
-            java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Java Runner Ready\");\n    }\n}"
-        };
+        let currentQuestion = null;
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('monaco-anchor'), {
-                value: boilerplates.python,
+                value: "# Start a session to load code.",
                 language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true, fontSize: 13, minimap: { enabled: false }
             });
         });
 
-        // Resize Logic
-        const leftPane = document.getElementById('left-pane');
-        const resizerV = document.getElementById('resizer-v');
-        const editorPane = document.getElementById('editor-pane');
-        const resizerH = document.getElementById('resizer-h');
-        resizerV.onmousedown = () => {
-            const move = (e) => leftPane.style.width = e.clientX + 'px';
-            const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
-            window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
-        };
-        resizerH.onmousedown = () => {
-            const move = (e) => {
-                const h = e.clientY - editorPane.getBoundingClientRect().top;
-                editorPane.style.flex = "none"; editorPane.style.height = h + 'px';
-            };
-            const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
-            window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
-        };
-
-        function switchTab(tab) {
-            const con = document.getElementById('console-out'), std = document.getElementById('stdin-field');
-            const tC = document.getElementById('t-console'), tS = document.getElementById('t-stdin');
-            if(tab==='console'){ con.classList.remove('hidden'); std.classList.add('hidden'); tC.className="text-[10px] font-bold text-blue-400 border-b-2 border-blue-500 h-full"; tS.className="text-[10px] font-bold text-zinc-600 h-full";}
-            else{ con.classList.add('hidden'); std.classList.remove('hidden'); tS.className="text-[10px] font-bold text-blue-400 border-b-2 border-blue-500 h-full"; tC.className="text-[10px] font-bold text-zinc-600 h-full";}
-        }
+        const leftPane = document.getElementById('left-pane'), resizerV = document.getElementById('resizer-v'), editorPane = document.getElementById('editor-pane'), resizerH = document.getElementById('resizer-h');
+        resizerV.onmousedown = () => { const move = (e) => leftPane.style.width = e.clientX + 'px'; const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }; window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); };
+        resizerH.onmousedown = () => { const move = (e) => { const h = e.clientY - editorPane.getBoundingClientRect().top; editorPane.style.flex = "none"; editorPane.style.height = h + 'px'; }; const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }; window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); };
 
         function changeLanguage() {
+            if(!currentQuestion) return;
             const lang = document.getElementById('lang-select').value;
-            monaco.editor.setModelLanguage(editor.getModel(), lang === 'python' ? 'python' : 'java');
-            editor.setValue(boilerplates[lang]);
+            monaco.editor.setModelLanguage(editor.getModel(), lang);
+            editor.setValue(lang === 'python' ? currentQuestion.python_boilerplate : currentQuestion.java_boilerplate);
+        }
+
+        function resetCode() {
+            if(!currentQuestion) return;
+            const lang = document.getElementById('lang-select').value;
+            editor.setValue(lang === 'python' ? currentQuestion.python_boilerplate : currentQuestion.java_boilerplate);
         }
 
         async function toggleTest() {
@@ -140,10 +125,9 @@
                 document.getElementById('question-area').classList.remove('opacity-40');
                 document.getElementById('runBtn').disabled = false;
                 editor.updateOptions({ readOnly: false });
-                loadQuestion();
+                await loadQuestion();
                 statusTimer = setInterval(checkStatus, 1000);
             } else { 
-                // FIX: Actually stop the test on the backend before reloading
                 await fetch('/stop_test');
                 clearInterval(statusTimer);
                 location.reload(); 
@@ -152,12 +136,15 @@
 
         async function loadQuestion() {
             const res = await fetch('/get_current_question');
-            const q = await res.json();
-            document.getElementById('q-title').innerText = q.title;
-            document.getElementById('q-desc').innerText = q.description;
-            document.getElementById('q-diff').innerText = "Level " + q.difficulty;
-            document.getElementById('q-example').innerText = q.example;
+            currentQuestion = await res.json();
+            
+            document.getElementById('q-title').innerText = currentQuestion.title;
+            document.getElementById('q-desc').innerText = currentQuestion.description;
+            document.getElementById('q-diff').innerText = "Level " + currentQuestion.difficulty;
+            document.getElementById('q-example').innerText = currentQuestion.example;
             document.getElementById('example-block').classList.remove('hidden');
+            
+            changeLanguage(); // Sets boilerplate
         }
 
         async function checkStatus() {
@@ -171,16 +158,30 @@
 
         async function runCode() {
             const rb = document.getElementById('runBtn'), co = document.getElementById('console-out'), st = document.getElementById('exec-status');
-            switchTab('console'); rb.disabled = true; rb.innerText = "..."; st.innerText = "Running";
+            rb.disabled = true; rb.innerText = "..."; st.innerText = "Testing...";
             try {
-                const res = await fetch('/run_code', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: editor.getValue(), language: document.getElementById('lang-select').value, stdin: document.getElementById('stdin-field').value })});
+                const res = await fetch('/run_code', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ 
+                        code: editor.getValue(), 
+                        language: document.getElementById('lang-select').value,
+                        question_id: currentQuestion.id
+                    })
+                });
                 const data = await res.json();
                 co.innerText = data.stdout;
                 st.innerText = data.status.description;
-                if(data.status.id === 3) { co.innerHTML += "\n\n<span class='text-green-500 font-bold'>[PASSED]</span>"; setTimeout(loadQuestion, 1500); }
-                else { co.classList.add('text-red-400'); }
+                if(data.status.id === 3) { 
+                    co.innerHTML += "\n\n<span class='text-green-500 font-bold'>[PASSED ALL TESTS] Moving to next level...</span>"; 
+                    st.classList.replace('text-zinc-600', 'text-green-500');
+                    setTimeout(loadQuestion, 2000); 
+                } else { 
+                    co.classList.add('text-red-400'); 
+                    st.classList.replace('text-zinc-600', 'text-red-500');
+                }
             } catch(e) { co.innerText = "Error contacting server."; }
-            finally { rb.disabled = false; rb.innerText = "Run Code"; }
+            finally { rb.disabled = false; rb.innerText = "Submit"; }
         }
     </script>
 </body>

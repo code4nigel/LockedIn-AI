@@ -9,26 +9,17 @@ import webbrowser
 import subprocess
 import tempfile
 
-# Path setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
 from backend.ai_proctor.tracker import FaceTracker
-from backend.ai_proctor.questions import get_question_by_difficulty
+from backend.ai_proctor.questions import get_question_by_difficulty, get_question_by_id
 
-app = Flask(__name__, 
-            template_folder=os.path.join(project_root, 'frontend'),
-            static_folder=os.path.join(project_root, 'frontend'))
+app = Flask(__name__, template_folder=os.path.join(project_root, 'frontend'), static_folder=os.path.join(project_root, 'frontend'))
 CORS(app)
 
-proctor_state = {
-    "is_active": False,
-    "status": "SECURE",
-    "violations": 0,
-    "current_difficulty": 1
-}
-
+proctor_state = {"is_active": False, "status": "SECURE", "violations": 0, "current_difficulty": 1}
 camera = None
 camera_lock = threading.Lock()
 tracker = FaceTracker()
@@ -40,15 +31,13 @@ def index():
 def generate_frames():
     global camera, proctor_state
     while True:
-        if not proctor_state["is_active"]:
-            break
+        if not proctor_state["is_active"]: break
         with camera_lock:
             if camera is None or not camera.isOpened():
                 time.sleep(0.1)
                 continue
             success, frame = camera.read()
-        if not success:
-            continue
+        if not success: continue
         try:
             face_count, looking_away = tracker.process_frame(frame)
             if face_count != 1 or looking_away:
@@ -57,13 +46,11 @@ def generate_frames():
             else:
                 proctor_state["status"] = "SECURE"
                 color = (0, 255, 0)
-            cv2.putText(frame, f"AI: {proctor_state['status']}", (10, 30), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            cv2.putText(frame, f"AI: {proctor_state['status']}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             if not ret: continue
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-        except Exception as e:
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        except Exception:
             continue
 
 @app.route('/video_feed')
@@ -105,69 +92,73 @@ def run_code():
     data = request.json
     code = data.get('code', '')
     lang = data.get('language', 'python')
-    stdin = data.get('stdin', '')
+    q_id = data.get('question_id')
+    
+    question = get_question_by_id(q_id)
+    if not question:
+        return jsonify({"stdout": "Question not found.", "status": {"id": 6, "description": "Error"}})
 
     output_text = ""
     is_error = False
     
     try:
-        # Create a temporary folder to run the code
         with tempfile.TemporaryDirectory() as temp_dir:
-            
             if lang == "python":
+                # Inject Python tests
+                full_code = code + "\n" + question["python_test"]
                 file_path = os.path.join(temp_dir, "solution.py")
                 with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(code)
+                    f.write(full_code)
                 
-                # Run Python locally
-                res = subprocess.run([sys.executable, file_path], input=stdin, text=True, capture_output=True, timeout=5)
-                
+                res = subprocess.run([sys.executable, file_path], text=True, capture_output=True, timeout=5)
                 if res.returncode != 0:
                     is_error = True
-                    output_text += "--- RUNTIME ERROR ---\n" + res.stderr
+                    output_text += "--- TEST FAILED ---\n" + res.stderr
                 else:
                     output_text += res.stdout
 
             elif lang == "java":
-                file_path = os.path.join(temp_dir, "Main.java")
-                with open(file_path, "w", encoding="utf-8") as f:
+                # Save user code as Solution.java
+                sol_path = os.path.join(temp_dir, "Solution.java")
+                with open(sol_path, "w", encoding="utf-8") as f:
                     f.write(code)
                 
-                # Compile Java locally
-                comp = subprocess.run(["javac", file_path], text=True, capture_output=True, timeout=5)
+                # Save test code as Main.java
+                main_path = os.path.join(temp_dir, "Main.java")
+                with open(main_path, "w", encoding="utf-8") as f:
+                    f.write(question["java_test"])
                 
+                comp = subprocess.run(["javac", sol_path, main_path], text=True, capture_output=True, timeout=5)
                 if comp.returncode != 0:
                     is_error = True
                     output_text += "--- COMPILATION ERROR ---\n" + comp.stderr
                 else:
-                    # Run Java locally
-                    run_res = subprocess.run(["java", "-cp", temp_dir, "Main"], input=stdin, text=True, capture_output=True, timeout=5)
+                    run_res = subprocess.run(["java", "-cp", temp_dir, "Main"], text=True, capture_output=True, timeout=5)
                     if run_res.returncode != 0:
                         is_error = True
-                        output_text += "--- RUNTIME ERROR ---\n" + run_res.stderr
+                        output_text += "--- TEST FAILED ---\n" + run_res.stderr
                     else:
                         output_text += run_res.stdout
 
-        # Handle empty output
         if not output_text.strip() and not is_error:
-            output_text = "> Execution complete (no output returned)."
+            output_text = "> Execution complete."
 
         success = not is_error
-        if success:
+        if success and "ALL TESTS PASSED" in output_text:
             proctor_state["current_difficulty"] = min(10, proctor_state["current_difficulty"] + 1)
             
         return jsonify({
             "stdout": output_text,
             "status": {
                 "id": 3 if success else 11,
-                "description": "Accepted" if success else "Error Found"
+                "description": "Accepted" if success else "Test Failed"
             }
         })
 
     except subprocess.TimeoutExpired:
-        return jsonify({"stdout": "Execution timed out (infinite loop?).", "status": {"id": 5, "description": "Time Limit Exceeded"}})
+        return jsonify({"stdout": "Execution timed out.", "status": {"id": 5, "description": "Time Limit Exceeded"}})
     except Exception as e:
-        return jsonify({"stdout": f"Server Error (Make sure Python/Java is installed): {str(e)}", "status": {"id": 6, "description": "Failed"}})
+        return jsonify({"stdout": f"Server Error: {str(e)}", "status": {"id": 6, "description": "Failed"}})
 
 if __name__ == '__main__':
     threading.Thread(target=lambda: (time.sleep(2), webbrowser.open("http://127.0.0.1:5000")), daemon=True).start()

@@ -25,7 +25,9 @@ proctor_state = {
     "status": "SECURE", 
     "violations": 0, 
     "current_difficulty": 1,
-    "audio_enabled": False
+    "audio_enabled": False,
+    "syntax_errors": 0,
+    "logic_errors": 0
 }
 
 camera = None
@@ -55,15 +57,24 @@ def generate_frames():
         try:
             face_count, looking_away = tracker.process_frame(frame)
             
+            # Determine current frame's status
+            current_status = "SECURE"
             if face_count != 1 or looking_away:
-                proctor_state["status"] = "VIOLATION (LOOK AWAY)"
+                current_status = "VIOLATION (LOOK AWAY)"
                 color = (0, 0, 255)
             elif proctor_state["audio_enabled"] and audio_tracker.audio_violation:
-                proctor_state["status"] = "VIOLATION (AUDIO DETECTED)"
+                current_status = "VIOLATION (AUDIO DETECTED)"
                 color = (0, 165, 255) 
             else:
-                proctor_state["status"] = "SECURE"
+                current_status = "SECURE"
                 color = (0, 255, 0)
+                
+            # Only add a violation if the status CHANGED from SECURE to a VIOLATION
+            if current_status != "SECURE" and proctor_state["status"] == "SECURE":
+                proctor_state["violations"] += 1
+                
+            # Update the global state
+            proctor_state["status"] = current_status
                 
             cv2.putText(frame, f"AI: {proctor_state['status']}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
@@ -92,6 +103,11 @@ def start_test():
             time.sleep(0.5)
             proctor_state["is_active"] = True
             proctor_state["audio_enabled"] = settings.get('audio', False)
+            proctor_state["violations"] = 0
+            proctor_state["syntax_errors"] = 0
+            proctor_state["logic_errors"] = 0
+            proctor_state["current_difficulty"] = 1
+            proctor_state["status"] = "SECURE" # Reset state
             
             if proctor_state["audio_enabled"]:
                 audio_tracker.start()
@@ -143,6 +159,11 @@ def run_code():
                 if res.returncode != 0:
                     is_error = True
                     output_text += "--- TEST FAILED ---\n" + res.stderr
+                    
+                    if "SyntaxError" in res.stderr or "IndentationError" in res.stderr:
+                        proctor_state["syntax_errors"] += 1
+                    else:
+                        proctor_state["logic_errors"] += 1
                 else:
                     output_text += res.stdout
 
@@ -159,11 +180,13 @@ def run_code():
                 if comp.returncode != 0:
                     is_error = True
                     output_text += "--- COMPILATION ERROR ---\n" + comp.stderr
+                    proctor_state["syntax_errors"] += 1
                 else:
                     run_res = subprocess.run(["java", "-cp", temp_dir, "Main"], text=True, capture_output=True, timeout=5)
                     if run_res.returncode != 0:
                         is_error = True
                         output_text += "--- TEST FAILED ---\n" + run_res.stderr
+                        proctor_state["logic_errors"] += 1
                     else:
                         output_text += run_res.stdout
 
@@ -180,6 +203,7 @@ def run_code():
         })
 
     except subprocess.TimeoutExpired:
+        proctor_state["logic_errors"] += 1
         return jsonify({"stdout": "Execution timed out.", "status": {"id": 5, "description": "Time Limit Exceeded"}})
     except Exception as e:
         return jsonify({"stdout": f"Server Error: {str(e)}", "status": {"id": 6, "description": "Failed"}})

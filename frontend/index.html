@@ -18,7 +18,7 @@
         .audio-glow { box-shadow: inset 0 0 20px #f97316; border: 1px solid #f97316 !important; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
-        .modal-blur { backdrop-filter: blur(4px); }
+        .modal-blur { backdrop-filter: blur(8px); }
 
         .timer-default {
             background: linear-gradient(90deg, #3b82f6, #06b6d4);
@@ -42,6 +42,13 @@
         .mic-pulse {
             animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
+
+        .glass-card {
+            background: rgba(24, 24, 27, 0.8);
+            border: 1px solid rgba(63, 63, 70, 0.5);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(59, 130, 246, 0.05);
+        }
+        .text-glow-blue { text-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
     </style>
 </head>
 <body>
@@ -124,7 +131,7 @@
         </div>
     </main>
 
-    <!-- Time Selection Modal -->
+    <!-- Start Setup Modal -->
     <div id="time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
         <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
             <div class="p-6 border-b border-zinc-800">
@@ -167,7 +174,51 @@
             </div>
             
             <div class="p-4 bg-zinc-900/30 flex justify-end">
-                <button onclick="closeModal()" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+                <button onclick="closeModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Report Modal -->
+    <div id="report-modal" class="hidden fixed inset-0 bg-black/80 modal-blur z-[60] flex items-center justify-center transition-opacity">
+        <div class="glass-card rounded-2xl w-[500px] overflow-hidden transform transition-all relative">
+            <div class="absolute -top-20 -right-20 w-40 h-40 bg-blue-600 rounded-full blur-[80px] opacity-20"></div>
+            <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-600 rounded-full blur-[80px] opacity-20"></div>
+            
+            <div class="p-8 relative z-10 text-center border-b border-zinc-800">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-900/30 text-blue-400 mb-4 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <h3 class="text-white text-2xl font-black tracking-tight uppercase">Session Complete</h3>
+                <p class="text-zinc-400 text-sm mt-2" id="report-ai-text">Analyzing your coding profile...</p>
+            </div>
+            
+            <div class="p-6 relative z-10">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-zinc-900/60 border border-zinc-700/50 p-4 rounded-xl text-center">
+                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-1">Max Level Reached</span>
+                        <span class="text-3xl font-black text-white text-glow-blue" id="report-level">1</span>
+                    </div>
+                    
+                    <div class="bg-zinc-900/60 border border-zinc-700/50 p-4 rounded-xl text-center">
+                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-1">Proctoring Violations</span>
+                        <span class="text-3xl font-black" id="report-violations">0</span>
+                    </div>
+
+                    <div class="bg-zinc-900/60 border border-zinc-700/50 p-4 rounded-xl text-center">
+                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-1">Syntax Mistakes</span>
+                        <span class="text-2xl font-bold text-yellow-500" id="report-syntax">0</span>
+                    </div>
+
+                    <div class="bg-zinc-900/60 border border-zinc-700/50 p-4 rounded-xl text-center">
+                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-1">Logic Failures</span>
+                        <span class="text-2xl font-bold text-purple-400" id="report-logic">0</span>
+                    </div>
+                </div>
+
+                <button onclick="location.reload()" class="w-full mt-6 px-4 py-3 rounded-xl bg-white text-black font-bold uppercase tracking-wider text-xs hover:bg-zinc-200 transition">
+                    Return to Dashboard
+                </button>
             </div>
         </div>
     </div>
@@ -202,8 +253,8 @@
             editor.setValue(lang === 'python' ? currentQuestion.python_boilerplate : currentQuestion.java_boilerplate);
         }
 
-        function openModal() { document.getElementById('time-modal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('time-modal').classList.add('hidden'); }
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
         function formatTime(seconds) {
             const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -261,19 +312,18 @@
 
                 if (timeLeft <= 0) {
                     clearInterval(testTimer);
-                    handleTimeUp();
+                    endSessionAndShowReport();
                 }
             }, 1000);
         }
 
         async function startSession(seconds) {
-            closeModal();
+            closeModal('time-modal');
             testing = true;
             timeLeft = seconds;
             totalDuration = seconds;
             
             const audioEnabled = document.getElementById('audio-toggle').checked;
-            
             if(audioEnabled) {
                 document.getElementById('mic-badge').classList.remove('hidden');
                 document.getElementById('mic-badge').classList.add('flex');
@@ -301,25 +351,47 @@
             statusTimer = setInterval(checkStatus, 1000);
         }
 
-        async function handleTimeUp() {
-            alert("Time's Up! Your session has ended.");
-            document.getElementById('feed').src = ""; // Kill video feed immediately
-            await fetch('/stop_test');
+        async function endSessionAndShowReport() {
             clearInterval(statusTimer);
-            location.reload();
+            clearInterval(testTimer);
+            document.getElementById('feed').src = ""; 
+            
+            const res = await fetch('/status');
+            const data = await res.json();
+            
+            await fetch('/stop_test');
+            
+            document.getElementById('mic-badge').classList.add('hidden');
+            document.getElementById('mic-badge').classList.remove('flex');
+            
+            document.getElementById('report-level').innerText = data.current_difficulty;
+            document.getElementById('report-syntax').innerText = data.syntax_errors;
+            document.getElementById('report-logic').innerText = data.logic_errors;
+            
+            const vText = document.getElementById('report-violations');
+            vText.innerText = data.violations;
+            vText.className = data.violations > 0 ? "text-3xl font-black text-red-500" : "text-3xl font-black text-green-400";
+            
+            let profile = "Solid performance.";
+            if (data.syntax_errors === 0 && data.logic_errors === 0) {
+                profile = "Flawless execution. Your code was perfect.";
+            } else if (data.syntax_errors > data.logic_errors) {
+                profile = "You struggle with syntax. Review your language rules.";
+            } else if (data.logic_errors > data.syntax_errors) {
+                profile = "Good typing, but poor logic. Try to trace your algorithm first.";
+            } else {
+                profile = "You make an even amount of syntax and logic mistakes.";
+            }
+            document.getElementById('report-ai-text').innerText = profile;
+
+            openModal('report-modal');
         }
 
         async function toggleTest() {
             if (!testing) {
-                openModal();
+                openModal('time-modal');
             } else { 
-                document.getElementById('feed').src = ""; // Kill video feed immediately
-                await fetch('/stop_test');
-                clearInterval(statusTimer);
-                clearInterval(testTimer);
-                document.getElementById('mic-badge').classList.add('hidden');
-                document.getElementById('mic-badge').classList.remove('flex');
-                location.reload(); 
+                await endSessionAndShowReport();
             }
         }
 

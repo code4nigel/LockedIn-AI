@@ -8,23 +8,18 @@
     <style>
         body { background: #0a0a0a; color: #d4d4d8; height: 100vh; overflow: hidden; display: flex; flex-direction: column; margin: 0; }
         .pane-container { height: calc(100vh - 56px); display: flex; overflow: hidden; }
-        
-        /* Thin Resizers */
         .resizer-v { width: 2px; cursor: col-resize; background: #18181b; transition: background 0.2s; z-index: 10; }
         .resizer-v:hover, .resizing-v { background: #3b82f6; width: 4px; }
         .resizer-h { height: 2px; cursor: row-resize; background: #18181b; transition: background 0.2s; z-index: 10; }
         .resizer-h:hover, .resizing-h { background: #3b82f6; height: 4px; }
-
         #editor-pane { flex: 1; display: flex; flex-direction: column; min-height: 100px; }
         #monaco-anchor { flex: 1; }
-        
         .violation-glow { box-shadow: inset 0 0 20px #ef4444; border: 1px solid #ef4444 !important; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
     </style>
 </head>
 <body>
-
     <header class="h-14 border-b border-zinc-800 flex justify-between items-center px-6 bg-[#0f0f0f] shrink-0">
         <div class="flex items-center gap-6">
             <h1 class="text-lg font-black tracking-tighter text-blue-500 uppercase">Locked<span class="text-white">In</span></h1>
@@ -34,7 +29,6 @@
     </header>
 
     <main class="pane-container">
-        <!-- Left Pane -->
         <div id="left-pane" class="w-[400px] min-w-[300px] flex flex-col shrink-0 bg-[#0a0a0a]">
             <div class="flex-1 border-r border-zinc-800 flex flex-col overflow-hidden">
                 <div class="p-3 border-b border-zinc-800 bg-[#0f0f0f] flex justify-between items-center">
@@ -49,42 +43,35 @@
                         <pre id="q-example" class="bg-zinc-900/50 p-3 rounded border border-zinc-800 font-mono text-[11px] text-zinc-300"></pre>
                     </div>
                 </div>
-                <!-- Camera Feed -->
                 <div class="h-48 border-t border-zinc-800 bg-black relative overflow-hidden">
                     <img id="feed" src="" class="w-full h-full object-contain hidden">
                     <div id="cam-off" class="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-zinc-700 uppercase tracking-widest">Cam Offline</div>
                 </div>
             </div>
         </div>
-
-        <!-- Vertical Resizer -->
         <div id="resizer-v" class="resizer-v"></div>
-
-        <!-- Right Pane -->
         <div id="right-pane" class="flex-1 flex flex-col min-w-[400px] bg-[#0a0a0a]">
-            <!-- Top: Editor -->
             <div id="editor-pane" class="flex-[2] flex flex-col overflow-hidden bg-[#0a0a0a]">
                 <div class="h-10 border-b border-zinc-800 flex justify-between items-center px-4 bg-[#0f0f0f]">
-                    <span class="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">Solution.py</span>
-                    <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-900 border border-zinc-800 text-[10px] rounded px-2 py-1 outline-none text-zinc-400">
+                    <span class="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">Solution</span>
+                    <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-900 border border-zinc-800 text-[10px] rounded px-2 py-1 outline-none text-zinc-400 cursor-pointer">
                         <option value="python">Python 3</option>
                         <option value="java">Java 15</option>
                     </select>
                 </div>
                 <div id="monaco-anchor"></div>
             </div>
-
-            <!-- Horizontal Resizer -->
             <div id="resizer-h" class="resizer-h"></div>
-
-            <!-- Bottom: Console -->
             <div id="console-pane" class="flex-1 min-h-[150px] flex flex-col overflow-hidden bg-[#0a0a0a]">
                 <div class="h-10 border-b border-zinc-800 flex justify-between items-center px-4 bg-[#0f0f0f]">
                     <div class="flex gap-4 h-full">
                         <button onclick="switchTab('console')" id="t-console" class="text-[10px] font-bold text-blue-400 border-b-2 border-blue-500 h-full">Console</button>
                         <button onclick="switchTab('stdin')" id="t-stdin" class="text-[10px] font-bold text-zinc-600 h-full">Input</button>
                     </div>
-                    <button id="runBtn" onclick="runCode()" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold px-4 py-1.5 rounded transition disabled:opacity-30" disabled>Run Code</button>
+                    <div class="flex items-center gap-4">
+                        <span id="exec-status" class="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Idle</span>
+                        <button id="runBtn" onclick="runCode()" class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold px-4 py-1.5 rounded transition disabled:opacity-30" disabled>Run Code</button>
+                    </div>
                 </div>
                 <div class="flex-1 relative bg-black overflow-hidden">
                     <pre id="console-out" class="absolute inset-0 p-4 text-zinc-400 font-mono text-[11px] overflow-y-auto whitespace-pre-wrap">Ready...</pre>
@@ -96,71 +83,43 @@
 
     <script>
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        let editor, testing = false;
-
+        let editor, testing = false, statusTimer;
         const boilerplates = {
-            python: "def solution():\n    # Your logic here\n    print(\"Hello LockedIn\")\n\nsolution()",
-            java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello Java\");\n    }\n}"
+            python: "def containsDuplicate(nums):\n    seen = set()\n    for num in nums:\n        if num in seen:\n            return True\n        seen.add(num)\n    return False\n\nprint(containsDuplicate([2, 7, 11, 15]))\nprint(containsDuplicate([1, 2, 3, 1]))",
+            java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Java Runner Ready\");\n    }\n}"
         };
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('monaco-anchor'), {
                 value: boilerplates.python,
-                language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true, 
-                fontSize: 13, minimap: { enabled: false }, padding: { top: 10 }
+                language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true, fontSize: 13, minimap: { enabled: false }
             });
         });
 
-        // Simplified Resize Logic
+        // Resize Logic
         const leftPane = document.getElementById('left-pane');
         const resizerV = document.getElementById('resizer-v');
         const editorPane = document.getElementById('editor-pane');
         const resizerH = document.getElementById('resizer-h');
-
-        resizerV.addEventListener('mousedown', () => {
-            document.body.style.cursor = 'col-resize';
+        resizerV.onmousedown = () => {
+            const move = (e) => leftPane.style.width = e.clientX + 'px';
+            const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+            window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+        };
+        resizerH.onmousedown = () => {
             const move = (e) => {
-                leftPane.style.width = e.clientX + 'px';
+                const h = e.clientY - editorPane.getBoundingClientRect().top;
+                editorPane.style.flex = "none"; editorPane.style.height = h + 'px';
             };
-            const up = () => {
-                document.body.style.cursor = 'default';
-                window.removeEventListener('mousemove', move);
-                window.removeEventListener('mouseup', up);
-            };
-            window.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', up);
-        });
-
-        resizerH.addEventListener('mousedown', (e) => {
-            document.body.style.cursor = 'row-resize';
-            const move = (ev) => {
-                const height = ev.clientY - editorPane.getBoundingClientRect().top;
-                editorPane.style.flex = "none";
-                editorPane.style.height = height + 'px';
-            };
-            const up = () => {
-                document.body.style.cursor = 'default';
-                window.removeEventListener('mousemove', move);
-                window.removeEventListener('mouseup', up);
-            };
-            window.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', up);
-        });
+            const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+            window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+        };
 
         function switchTab(tab) {
-            const con = document.getElementById('console-out');
-            const stdin = document.getElementById('stdin-field');
-            const tCon = document.getElementById('t-console');
-            const tStd = document.getElementById('t-stdin');
-            if(tab === 'console') {
-                con.classList.remove('hidden'); stdin.classList.add('hidden');
-                tCon.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
-                tStd.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
-            } else {
-                con.classList.add('hidden'); stdin.classList.remove('hidden');
-                tStd.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
-                tCon.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
-            }
+            const con = document.getElementById('console-out'), std = document.getElementById('stdin-field');
+            const tC = document.getElementById('t-console'), tS = document.getElementById('t-stdin');
+            if(tab==='console'){ con.classList.remove('hidden'); std.classList.add('hidden'); tC.className="text-[10px] font-bold text-blue-400 border-b-2 border-blue-500 h-full"; tS.className="text-[10px] font-bold text-zinc-600 h-full";}
+            else{ con.classList.add('hidden'); std.classList.remove('hidden'); tS.className="text-[10px] font-bold text-blue-400 border-b-2 border-blue-500 h-full"; tC.className="text-[10px] font-bold text-zinc-600 h-full";}
         }
 
         function changeLanguage() {
@@ -174,7 +133,7 @@
             testing = !testing;
             if (testing) {
                 await fetch('/start_test');
-                btn.innerText = "Stop Session"; btn.classList.replace('bg-blue-600', 'bg-red-600');
+                btn.innerText = "Stop Session"; btn.className = "px-5 py-1.5 rounded-md bg-red-600 text-xs font-bold";
                 document.getElementById('feed').src = "/video_feed?t=" + Date.now();
                 document.getElementById('feed').classList.remove('hidden');
                 document.getElementById('cam-off').classList.add('hidden');
@@ -182,9 +141,11 @@
                 document.getElementById('runBtn').disabled = false;
                 editor.updateOptions({ readOnly: false });
                 loadQuestion();
-                setInterval(checkStatus, 1000);
-            } else {
+                statusTimer = setInterval(checkStatus, 1000);
+            } else { 
+                // FIX: Actually stop the test on the backend before reloading
                 await fetch('/stop_test');
+                clearInterval(statusTimer);
                 location.reload(); 
             }
         }
@@ -201,41 +162,25 @@
 
         async function checkStatus() {
             if(!testing) return;
-            const res = await fetch('/status');
-            const data = await res.json();
-            const badge = document.getElementById('badge');
-            const editorBox = document.getElementById('editor-pane');
+            const res = await fetch('/status'), data = await res.json();
+            const badge = document.getElementById('badge'), ed = document.getElementById('editor-pane');
             badge.innerText = "PROCTOR: " + data.status;
-            if(data.status === "VIOLATION") {
-                badge.className = "px-3 py-1 rounded bg-red-900/30 text-[10px] font-bold border border-red-800 text-red-500";
-                editorBox.classList.add('violation-glow');
-            } else {
-                badge.className = "px-3 py-1 rounded bg-green-900/30 text-[10px] font-bold border border-green-800 text-green-500";
-                editorBox.classList.remove('violation-glow');
-            }
+            if(data.status === "VIOLATION") { badge.className = "px-3 py-1 rounded bg-red-900/30 text-[10px] font-bold border border-red-800 text-red-500"; ed.classList.add('violation-glow'); }
+            else { badge.className = "px-3 py-1 rounded bg-green-900/30 text-[10px] font-bold border border-green-800 text-green-500"; ed.classList.remove('violation-glow'); }
         }
 
         async function runCode() {
-            const runBtn = document.getElementById('runBtn');
-            const con = document.getElementById('console-out');
-            switchTab('console');
-            runBtn.disabled = true; runBtn.innerText = "...";
-            
-            const res = await fetch('/run_code', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    code: editor.getValue(),
-                    language: document.getElementById('lang-select').value,
-                    stdin: document.getElementById('stdin-field').value
-                })
-            });
-            const data = await res.json();
-            con.innerText = data.stdout;
-            if (data.status.id === 3) {
-                con.innerHTML += "\n\n<span class='text-green-500'>[PASSED]</span>";
-                setTimeout(loadQuestion, 2000);
-            }
-            runBtn.disabled = false; runBtn.innerText = "Run Code";
+            const rb = document.getElementById('runBtn'), co = document.getElementById('console-out'), st = document.getElementById('exec-status');
+            switchTab('console'); rb.disabled = true; rb.innerText = "..."; st.innerText = "Running";
+            try {
+                const res = await fetch('/run_code', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ code: editor.getValue(), language: document.getElementById('lang-select').value, stdin: document.getElementById('stdin-field').value })});
+                const data = await res.json();
+                co.innerText = data.stdout;
+                st.innerText = data.status.description;
+                if(data.status.id === 3) { co.innerHTML += "\n\n<span class='text-green-500 font-bold'>[PASSED]</span>"; setTimeout(loadQuestion, 1500); }
+                else { co.classList.add('text-red-400'); }
+            } catch(e) { co.innerText = "Error contacting server."; }
+            finally { rb.disabled = false; rb.innerText = "Run Code"; }
         }
     </script>
 </body>

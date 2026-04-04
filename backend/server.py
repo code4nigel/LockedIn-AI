@@ -6,7 +6,8 @@ import os
 import threading
 import time
 import webbrowser
-import requests
+import subprocess
+import tempfile
 
 # Path setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +22,6 @@ app = Flask(__name__,
             static_folder=os.path.join(project_root, 'frontend'))
 CORS(app)
 
-# Global states
 proctor_state = {
     "is_active": False,
     "status": "SECURE",
@@ -29,7 +29,6 @@ proctor_state = {
     "current_difficulty": 1
 }
 
-PISTON_URL = "https://emkc.org/api/v2/piston/execute"
 camera = None
 camera_lock = threading.Lock()
 tracker = FaceTracker()
@@ -43,36 +42,28 @@ def generate_frames():
     while True:
         if not proctor_state["is_active"]:
             break
-            
         with camera_lock:
             if camera is None or not camera.isOpened():
                 time.sleep(0.1)
                 continue
             success, frame = camera.read()
-            
         if not success:
             continue
-        
         try:
             face_count, looking_away = tracker.process_frame(frame)
-            
             if face_count != 1 or looking_away:
                 proctor_state["status"] = "VIOLATION"
                 color = (0, 0, 255)
             else:
                 proctor_state["status"] = "SECURE"
                 color = (0, 255, 0)
-                
             cv2.putText(frame, f"AI: {proctor_state['status']}", (10, 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-
             ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             if not ret: continue
-            
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
         except Exception as e:
-            print(f"Server Stream Error: {e}")
             continue
 
 @app.route('/video_feed')
@@ -92,7 +83,6 @@ def start_test():
             camera = cv2.VideoCapture(0)
             time.sleep(0.5)
             proctor_state["is_active"] = True
-            proctor_state["violations"] = 0
     return jsonify({"status": "started"})
 
 @app.route('/stop_test')
@@ -117,45 +107,67 @@ def run_code():
     lang = data.get('language', 'python')
     stdin = data.get('stdin', '')
 
-    lang_map = {
-        "python": {"n": "python", "v": "3.10.0"},
-        "java": {"n": "java", "v": "15.0.2"}
-    }
-    target = lang_map.get(lang, lang_map["python"])
-
+    output_text = ""
+    is_error = False
+    
     try:
-        res = requests.post(PISTON_URL, json={
-            "language": target["n"],
-            "version": target["v"],
-            "files": [{"content": code}],
-            "stdin": stdin
-        }, timeout=10).json()
-        
-        run = res.get('run', {})
-        stdout = run.get('stdout', '')
-        stderr = run.get('stderr', '')
-        
-        # Determine success
-        success = (run.get('code') == 0 and not stderr)
-        
-        # If there is stdout, we show it. If there is stderr, we append it.
-        # This ensures print statements are visible.
-        final_output = stdout if stdout else ""
-        if stderr:
-            final_output += "\n--- ERRORS ---\n" + stderr
-        
-        if not final_output:
-            final_output = "> Code executed successfully (No Output)."
+        # Create a temporary folder to run the code
+        with tempfile.TemporaryDirectory() as temp_dir:
+            
+            if lang == "python":
+                file_path = os.path.join(temp_dir, "solution.py")
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(code)
+                
+                # Run Python locally
+                res = subprocess.run([sys.executable, file_path], input=stdin, text=True, capture_output=True, timeout=5)
+                
+                if res.returncode != 0:
+                    is_error = True
+                    output_text += "--- RUNTIME ERROR ---\n" + res.stderr
+                else:
+                    output_text += res.stdout
 
+            elif lang == "java":
+                file_path = os.path.join(temp_dir, "Main.java")
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(code)
+                
+                # Compile Java locally
+                comp = subprocess.run(["javac", file_path], text=True, capture_output=True, timeout=5)
+                
+                if comp.returncode != 0:
+                    is_error = True
+                    output_text += "--- COMPILATION ERROR ---\n" + comp.stderr
+                else:
+                    # Run Java locally
+                    run_res = subprocess.run(["java", "-cp", temp_dir, "Main"], input=stdin, text=True, capture_output=True, timeout=5)
+                    if run_res.returncode != 0:
+                        is_error = True
+                        output_text += "--- RUNTIME ERROR ---\n" + run_res.stderr
+                    else:
+                        output_text += run_res.stdout
+
+        # Handle empty output
+        if not output_text.strip() and not is_error:
+            output_text = "> Execution complete (no output returned)."
+
+        success = not is_error
         if success:
             proctor_state["current_difficulty"] = min(10, proctor_state["current_difficulty"] + 1)
             
         return jsonify({
-            "stdout": final_output,
-            "status": {"id": 3 if success else 11, "description": "Accepted" if success else "Error"}
+            "stdout": output_text,
+            "status": {
+                "id": 3 if success else 11,
+                "description": "Accepted" if success else "Error Found"
+            }
         })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({"stdout": "Execution timed out (infinite loop?).", "status": {"id": 5, "description": "Time Limit Exceeded"}})
     except Exception as e:
-        return jsonify({"stdout": f"Server Error: {str(e)}", "status": {"id": 6}})
+        return jsonify({"stdout": f"Server Error (Make sure Python/Java is installed): {str(e)}", "status": {"id": 6, "description": "Failed"}})
 
 if __name__ == '__main__':
     threading.Thread(target=lambda: (time.sleep(2), webbrowser.open("http://127.0.0.1:5000")), daemon=True).start()

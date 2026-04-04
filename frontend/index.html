@@ -15,11 +15,11 @@
         #editor-pane { flex: 1; display: flex; flex-direction: column; min-height: 100px; }
         #monaco-anchor { flex: 1; }
         .violation-glow { box-shadow: inset 0 0 20px #ef4444; border: 1px solid #ef4444 !important; }
+        .audio-glow { box-shadow: inset 0 0 20px #f97316; border: 1px solid #f97316 !important; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
         .modal-blur { backdrop-filter: blur(4px); }
 
-        /* Cool Timer Styles */
         .timer-default {
             background: linear-gradient(90deg, #3b82f6, #06b6d4);
             -webkit-background-clip: text;
@@ -38,6 +38,10 @@
             animation: heartbeat 1.5s infinite;
             border-color: #ef4444 !important;
         }
+        
+        .mic-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
     </style>
 </head>
 <body>
@@ -47,7 +51,12 @@
             <div id="badge" class="px-3 py-1 rounded bg-zinc-900 text-[10px] font-bold border border-zinc-800 uppercase tracking-widest text-zinc-500">System Offline</div>
         </div>
         
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div id="mic-badge" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-900/20 border border-orange-500/30 text-orange-400 font-mono text-xs tracking-widest shadow-[0_0_10px_rgba(249,115,22,0.15)] transition-all">
+                <svg class="w-4 h-4 mic-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                <span class="font-bold">REC</span>
+            </div>
+
             <div id="timer-badge" class="hidden items-center gap-2 px-4 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 font-mono text-sm tracking-widest transition-all duration-300">
                 <svg id="timer-icon" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <span id="timer-text" class="timer-default font-bold">00:00</span>
@@ -119,11 +128,22 @@
     <div id="time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
         <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
             <div class="p-6 border-b border-zinc-800">
-                <h3 class="text-white text-lg font-bold">Session Duration</h3>
-                <p class="text-zinc-500 text-xs mt-1">Select time or enter a custom duration.</p>
+                <h3 class="text-white text-lg font-bold">Session Setup</h3>
+                <p class="text-zinc-500 text-xs mt-1">Configure your interview settings.</p>
             </div>
             
-            <div class="p-6 flex flex-col gap-3">
+            <div class="p-6 flex flex-col gap-4">
+                <div class="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between">
+                    <div>
+                        <span class="text-zinc-200 font-medium block text-sm">Audio Proctoring</span>
+                        <span class="text-zinc-500 text-xs">Detect talking or loud noises.</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="audio-toggle" class="sr-only peer">
+                        <div class="w-10 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                    </label>
+                </div>
+
                 <button onclick="startSession(600)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group">
                     <div>
                         <span class="text-zinc-200 font-medium block text-sm">Quick Session</span>
@@ -156,7 +176,6 @@
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
         let editor, testing = false, statusTimer;
         let currentQuestion = null;
-        
         let testTimer, timeLeft = 0, totalDuration = 0;
 
         require(['vs/editor/editor.main'], () => {
@@ -197,9 +216,7 @@
             if (!input) return 0;
             if (input.includes(':')) {
                 const parts = input.split(':');
-                const m = parseInt(parts[0]) || 0;
-                const s = parseInt(parts[1]) || 0;
-                return (m * 60) + s;
+                return (parseInt(parts[0] || 0) * 60) + parseInt(parts[1] || 0);
             }
             return (parseInt(input) || 0) * 60;
         }
@@ -207,17 +224,12 @@
         function startCustomSession() {
             const inputVal = document.getElementById('custom-time').value;
             const totalSecs = parseCustomTime(inputVal);
-            if(totalSecs > 0) {
-                startSession(totalSecs);
-            } else {
-                alert("Please enter a valid time (e.g., 5 or 5:15).");
-            }
+            if(totalSecs > 0) { startSession(totalSecs); } 
+            else { alert("Please enter a valid time (e.g., 5 or 5:15)."); }
         }
 
         function runTimerLogic() {
-            const badge = document.getElementById('timer-badge');
-            const txt = document.getElementById('timer-text');
-            const icon = document.getElementById('timer-icon');
+            const badge = document.getElementById('timer-badge'), txt = document.getElementById('timer-text'), icon = document.getElementById('timer-icon');
 
             const setNormal = () => {
                 badge.className = "flex items-center gap-2 px-4 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 font-mono text-sm tracking-widest transition-all duration-300";
@@ -240,15 +252,11 @@
 
                 let tenPercentMark = Math.floor(totalDuration * 0.1);
 
-                // Continuous pulse under 1 minute
                 if (timeLeft <= 60) {
                     setWarning();
                 } else if (timeLeft === tenPercentMark || (timeLeft === 300 && totalDuration > 300)) {
-                    // Pulse for 3 seconds at 90% mark or 5 min mark (if starting time is > 5 min)
                     setWarning();
-                    setTimeout(() => {
-                        if (timeLeft > 60) setNormal();
-                    }, 3000);
+                    setTimeout(() => { if (timeLeft > 60) setNormal(); }, 3000);
                 }
 
                 if (timeLeft <= 0) {
@@ -264,8 +272,19 @@
             timeLeft = seconds;
             totalDuration = seconds;
             
+            const audioEnabled = document.getElementById('audio-toggle').checked;
+            
+            if(audioEnabled) {
+                document.getElementById('mic-badge').classList.remove('hidden');
+                document.getElementById('mic-badge').classList.add('flex');
+            }
+            
             const btn = document.getElementById('toggleBtn');
-            await fetch('/start_test');
+            await fetch('/start_test', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ audio: audioEnabled })
+            });
             
             btn.innerText = "Stop Session"; 
             btn.className = "px-5 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-xs font-bold transition shadow-lg shadow-red-900/20";
@@ -284,6 +303,7 @@
 
         async function handleTimeUp() {
             alert("Time's Up! Your session has ended.");
+            document.getElementById('feed').src = ""; // Kill video feed immediately
             await fetch('/stop_test');
             clearInterval(statusTimer);
             location.reload();
@@ -293,9 +313,12 @@
             if (!testing) {
                 openModal();
             } else { 
+                document.getElementById('feed').src = ""; // Kill video feed immediately
                 await fetch('/stop_test');
                 clearInterval(statusTimer);
                 clearInterval(testTimer);
+                document.getElementById('mic-badge').classList.add('hidden');
+                document.getElementById('mic-badge').classList.remove('flex');
                 location.reload(); 
             }
         }
@@ -316,8 +339,21 @@
             const res = await fetch('/status'), data = await res.json();
             const badge = document.getElementById('badge'), ed = document.getElementById('editor-pane');
             badge.innerText = "PROCTOR: " + data.status;
-            if(data.status === "VIOLATION") { badge.className = "px-3 py-1 rounded bg-red-900/30 text-[10px] font-bold border border-red-800 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]"; ed.classList.add('violation-glow'); }
-            else { badge.className = "px-3 py-1 rounded bg-green-900/30 text-[10px] font-bold border border-green-800 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.1)]"; ed.classList.remove('violation-glow'); }
+            
+            if(data.status.includes("AUDIO")) {
+                badge.className = "px-3 py-1 rounded bg-orange-900/30 text-[10px] font-bold border border-orange-800 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.2)]"; 
+                ed.classList.remove('violation-glow');
+                ed.classList.add('audio-glow'); 
+            }
+            else if(data.status.includes("VIOLATION")) { 
+                badge.className = "px-3 py-1 rounded bg-red-900/30 text-[10px] font-bold border border-red-800 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]"; 
+                ed.classList.remove('audio-glow');
+                ed.classList.add('violation-glow'); 
+            }
+            else { 
+                badge.className = "px-3 py-1 rounded bg-green-900/30 text-[10px] font-bold border border-green-800 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.1)]"; 
+                ed.classList.remove('violation-glow', 'audio-glow'); 
+            }
         }
 
         async function runCode() {

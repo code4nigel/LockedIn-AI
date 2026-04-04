@@ -14,15 +14,24 @@ project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
 from backend.ai_proctor.tracker import FaceTracker
+from backend.ai_proctor.audio_monitor import AudioMonitor
 from backend.ai_proctor.questions import get_question_by_difficulty, get_question_by_id
 
 app = Flask(__name__, template_folder=os.path.join(project_root, 'frontend'), static_folder=os.path.join(project_root, 'frontend'))
 CORS(app)
 
-proctor_state = {"is_active": False, "status": "SECURE", "violations": 0, "current_difficulty": 1}
+proctor_state = {
+    "is_active": False, 
+    "status": "SECURE", 
+    "violations": 0, 
+    "current_difficulty": 1,
+    "audio_enabled": False
+}
+
 camera = None
 camera_lock = threading.Lock()
 tracker = FaceTracker()
+audio_tracker = AudioMonitor(threshold=150) 
 
 @app.route('/')
 def index():
@@ -31,21 +40,31 @@ def index():
 def generate_frames():
     global camera, proctor_state
     while True:
-        if not proctor_state["is_active"]: break
+        if not proctor_state["is_active"]: 
+            break
+            
         with camera_lock:
             if camera is None or not camera.isOpened():
                 time.sleep(0.1)
                 continue
             success, frame = camera.read()
-        if not success: continue
+            
+        if not success: 
+            continue
+        
         try:
             face_count, looking_away = tracker.process_frame(frame)
+            
             if face_count != 1 or looking_away:
-                proctor_state["status"] = "VIOLATION"
+                proctor_state["status"] = "VIOLATION (LOOK AWAY)"
                 color = (0, 0, 255)
+            elif proctor_state["audio_enabled"] and audio_tracker.audio_violation:
+                proctor_state["status"] = "VIOLATION (AUDIO DETECTED)"
+                color = (0, 165, 255) 
             else:
                 proctor_state["status"] = "SECURE"
                 color = (0, 255, 0)
+                
             cv2.putText(frame, f"AI: {proctor_state['status']}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             if not ret: continue
@@ -62,25 +81,36 @@ def get_current_question():
     q = get_question_by_difficulty(proctor_state["current_difficulty"], 0)
     return jsonify(q)
 
-@app.route('/start_test')
+@app.route('/start_test', methods=['POST'])
 def start_test():
-    global camera, proctor_state
+    global camera, proctor_state, audio_tracker
+    settings = request.json or {}
+    
     with camera_lock:
         if not proctor_state["is_active"]:
             camera = cv2.VideoCapture(0)
             time.sleep(0.5)
             proctor_state["is_active"] = True
+            proctor_state["audio_enabled"] = settings.get('audio', False)
+            
+            if proctor_state["audio_enabled"]:
+                audio_tracker.start()
+                
     return jsonify({"status": "started"})
 
 @app.route('/stop_test')
 def stop_test():
-    global camera, proctor_state
+    global camera, proctor_state, audio_tracker
     proctor_state["is_active"] = False
-    time.sleep(0.3)
+    
+    if audio_tracker:
+        audio_tracker.stop()
+        
     with camera_lock:
-        if camera:
+        if camera is not None:
             camera.release()
             camera = None
+            
     return jsonify({"status": "stopped"})
 
 @app.route('/status')
@@ -104,7 +134,6 @@ def run_code():
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             if lang == "python":
-                # Inject Python tests
                 full_code = code + "\n" + question["python_test"]
                 file_path = os.path.join(temp_dir, "solution.py")
                 with open(file_path, "w", encoding="utf-8") as f:
@@ -118,12 +147,10 @@ def run_code():
                     output_text += res.stdout
 
             elif lang == "java":
-                # Save user code as Solution.java
                 sol_path = os.path.join(temp_dir, "Solution.java")
                 with open(sol_path, "w", encoding="utf-8") as f:
                     f.write(code)
                 
-                # Save test code as Main.java
                 main_path = os.path.join(temp_dir, "Main.java")
                 with open(main_path, "w", encoding="utf-8") as f:
                     f.write(question["java_test"])
@@ -149,10 +176,7 @@ def run_code():
             
         return jsonify({
             "stdout": output_text,
-            "status": {
-                "id": 3 if success else 11,
-                "description": "Accepted" if success else "Test Failed"
-            }
+            "status": {"id": 3 if success else 11, "description": "Accepted" if success else "Test Failed"}
         })
 
     except subprocess.TimeoutExpired:

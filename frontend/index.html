@@ -17,6 +17,27 @@
         .violation-glow { box-shadow: inset 0 0 20px #ef4444; border: 1px solid #ef4444 !important; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+        .modal-blur { backdrop-filter: blur(4px); }
+
+        /* Cool Timer Styles */
+        .timer-default {
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 8px rgba(6,182,212,0.4);
+        }
+        
+        @keyframes heartbeat {
+            0% { transform: scale(1); box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+            14% { transform: scale(1.1); box-shadow: 0 0 25px rgba(239,68,68,0.8); }
+            28% { transform: scale(1); box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+            42% { transform: scale(1.1); box-shadow: 0 0 25px rgba(239,68,68,0.8); }
+            70% { transform: scale(1); box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+        }
+        .timer-warning {
+            animation: heartbeat 1.5s infinite;
+            border-color: #ef4444 !important;
+        }
     </style>
 </head>
 <body>
@@ -25,7 +46,15 @@
             <h1 class="text-lg font-black tracking-tighter text-blue-500 uppercase">Locked<span class="text-white">In</span></h1>
             <div id="badge" class="px-3 py-1 rounded bg-zinc-900 text-[10px] font-bold border border-zinc-800 uppercase tracking-widest text-zinc-500">System Offline</div>
         </div>
-        <button id="toggleBtn" onclick="toggleTest()" class="px-5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-xs font-bold transition">Start Test</button>
+        
+        <div class="flex items-center gap-4">
+            <div id="timer-badge" class="hidden items-center gap-2 px-4 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 font-mono text-sm tracking-widest transition-all duration-300">
+                <svg id="timer-icon" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span id="timer-text" class="timer-default font-bold">00:00</span>
+            </div>
+            
+            <button id="toggleBtn" onclick="toggleTest()" class="px-5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-xs font-bold transition shadow-lg shadow-blue-900/20">Start Test</button>
+        </div>
     </header>
 
     <main class="pane-container">
@@ -40,7 +69,7 @@
                     <p id="q-desc" class="text-zinc-400 text-sm leading-relaxed mb-6">Challenge appears on start.</p>
                     <div id="example-block" class="hidden">
                         <p class="text-[10px] text-zinc-600 uppercase font-bold mb-2">Example</p>
-                        <pre id="q-example" class="bg-zinc-900/50 p-3 rounded border border-zinc-800 font-mono text-[11px] text-zinc-300"></pre>
+                        <pre id="q-example" class="bg-zinc-900/50 p-3 rounded border border-zinc-800 font-mono text-[11px] text-zinc-300 whitespace-pre-wrap"></pre>
                     </div>
                 </div>
                 <div class="h-48 border-t border-zinc-800 bg-black relative overflow-hidden">
@@ -50,6 +79,7 @@
             </div>
         </div>
         <div id="resizer-v" class="resizer-v"></div>
+        
         <div id="right-pane" class="flex-1 flex flex-col min-w-[400px] bg-[#0a0a0a]">
             <div id="editor-pane" class="flex-[2] flex flex-col overflow-hidden bg-[#0a0a0a]">
                 <div class="h-10 border-b border-zinc-800 flex justify-between items-center px-4 bg-[#0f0f0f]">
@@ -67,6 +97,7 @@
                 <div id="monaco-anchor"></div>
             </div>
             <div id="resizer-h" class="resizer-h"></div>
+            
             <div id="console-pane" class="flex-1 min-h-[150px] flex flex-col overflow-hidden bg-[#0a0a0a]">
                 <div class="h-10 border-b border-zinc-800 flex justify-between items-center px-4 bg-[#0f0f0f]">
                     <div class="flex gap-4 h-full">
@@ -84,10 +115,49 @@
         </div>
     </main>
 
+    <!-- Time Selection Modal -->
+    <div id="time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
+        <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
+            <div class="p-6 border-b border-zinc-800">
+                <h3 class="text-white text-lg font-bold">Session Duration</h3>
+                <p class="text-zinc-500 text-xs mt-1">Select time or enter a custom duration.</p>
+            </div>
+            
+            <div class="p-6 flex flex-col gap-3">
+                <button onclick="startSession(600)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group">
+                    <div>
+                        <span class="text-zinc-200 font-medium block text-sm">Quick Session</span>
+                        <span class="text-zinc-500 text-xs">Best for simple warm-ups</span>
+                    </div>
+                    <span class="text-blue-400 font-mono text-sm group-hover:text-blue-300 bg-blue-900/20 px-3 py-1 rounded-md">10 Min</span>
+                </button>
+                
+                <button onclick="startSession(2700)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group ring-1 ring-blue-500/30">
+                    <div>
+                        <span class="text-blue-400 font-bold block text-sm">Real Interview Prep</span>
+                        <span class="text-zinc-500 text-xs">Standard interview length</span>
+                    </div>
+                    <span class="text-blue-400 font-mono text-sm group-hover:text-blue-300 bg-blue-900/20 px-3 py-1 rounded-md">45 Min</span>
+                </button>
+
+                <div class="flex gap-2 mt-2 items-center">
+                    <input type="text" id="custom-time" placeholder="M or M:SS" class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono">
+                    <button onclick="startCustomSession()" class="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm rounded-xl transition">Start</button>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-zinc-900/30 flex justify-end">
+                <button onclick="closeModal()" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
         let editor, testing = false, statusTimer;
         let currentQuestion = null;
+        
+        let testTimer, timeLeft = 0, totalDuration = 0;
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('monaco-anchor'), {
@@ -113,23 +183,119 @@
             editor.setValue(lang === 'python' ? currentQuestion.python_boilerplate : currentQuestion.java_boilerplate);
         }
 
-        async function toggleTest() {
+        function openModal() { document.getElementById('time-modal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('time-modal').classList.add('hidden'); }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function parseCustomTime(input) {
+            input = input.trim();
+            if (!input) return 0;
+            if (input.includes(':')) {
+                const parts = input.split(':');
+                const m = parseInt(parts[0]) || 0;
+                const s = parseInt(parts[1]) || 0;
+                return (m * 60) + s;
+            }
+            return (parseInt(input) || 0) * 60;
+        }
+
+        function startCustomSession() {
+            const inputVal = document.getElementById('custom-time').value;
+            const totalSecs = parseCustomTime(inputVal);
+            if(totalSecs > 0) {
+                startSession(totalSecs);
+            } else {
+                alert("Please enter a valid time (e.g., 5 or 5:15).");
+            }
+        }
+
+        function runTimerLogic() {
+            const badge = document.getElementById('timer-badge');
+            const txt = document.getElementById('timer-text');
+            const icon = document.getElementById('timer-icon');
+
+            const setNormal = () => {
+                badge.className = "flex items-center gap-2 px-4 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 font-mono text-sm tracking-widest transition-all duration-300";
+                txt.className = "timer-default font-bold";
+                icon.className = "w-4 h-4 text-cyan-400";
+            };
+
+            const setWarning = () => {
+                badge.className = "flex items-center gap-2 px-4 py-1.5 rounded-md bg-red-900/20 border-2 font-mono text-sm tracking-widest transition-all duration-300 timer-warning";
+                txt.className = "text-red-400 font-bold";
+                icon.className = "w-4 h-4 text-red-400";
+            };
+
+            setNormal();
+            txt.innerText = formatTime(timeLeft);
+
+            testTimer = setInterval(() => {
+                timeLeft--;
+                txt.innerText = formatTime(timeLeft);
+
+                let tenPercentMark = Math.floor(totalDuration * 0.1);
+
+                // Continuous pulse under 1 minute
+                if (timeLeft <= 60) {
+                    setWarning();
+                } else if (timeLeft === tenPercentMark || (timeLeft === 300 && totalDuration > 300)) {
+                    // Pulse for 3 seconds at 90% mark or 5 min mark (if starting time is > 5 min)
+                    setWarning();
+                    setTimeout(() => {
+                        if (timeLeft > 60) setNormal();
+                    }, 3000);
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(testTimer);
+                    handleTimeUp();
+                }
+            }, 1000);
+        }
+
+        async function startSession(seconds) {
+            closeModal();
+            testing = true;
+            timeLeft = seconds;
+            totalDuration = seconds;
+            
             const btn = document.getElementById('toggleBtn');
-            testing = !testing;
-            if (testing) {
-                await fetch('/start_test');
-                btn.innerText = "Stop Session"; btn.className = "px-5 py-1.5 rounded-md bg-red-600 text-xs font-bold";
-                document.getElementById('feed').src = "/video_feed?t=" + Date.now();
-                document.getElementById('feed').classList.remove('hidden');
-                document.getElementById('cam-off').classList.add('hidden');
-                document.getElementById('question-area').classList.remove('opacity-40');
-                document.getElementById('runBtn').disabled = false;
-                editor.updateOptions({ readOnly: false });
-                await loadQuestion();
-                statusTimer = setInterval(checkStatus, 1000);
+            await fetch('/start_test');
+            
+            btn.innerText = "Stop Session"; 
+            btn.className = "px-5 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-xs font-bold transition shadow-lg shadow-red-900/20";
+            
+            document.getElementById('feed').src = "/video_feed?t=" + Date.now();
+            document.getElementById('feed').classList.remove('hidden');
+            document.getElementById('cam-off').classList.add('hidden');
+            document.getElementById('question-area').classList.remove('opacity-40');
+            document.getElementById('runBtn').disabled = false;
+            editor.updateOptions({ readOnly: false });
+            
+            await loadQuestion();
+            runTimerLogic();
+            statusTimer = setInterval(checkStatus, 1000);
+        }
+
+        async function handleTimeUp() {
+            alert("Time's Up! Your session has ended.");
+            await fetch('/stop_test');
+            clearInterval(statusTimer);
+            location.reload();
+        }
+
+        async function toggleTest() {
+            if (!testing) {
+                openModal();
             } else { 
                 await fetch('/stop_test');
                 clearInterval(statusTimer);
+                clearInterval(testTimer);
                 location.reload(); 
             }
         }
@@ -137,14 +303,12 @@
         async function loadQuestion() {
             const res = await fetch('/get_current_question');
             currentQuestion = await res.json();
-            
             document.getElementById('q-title').innerText = currentQuestion.title;
             document.getElementById('q-desc').innerText = currentQuestion.description;
             document.getElementById('q-diff').innerText = "Level " + currentQuestion.difficulty;
             document.getElementById('q-example').innerText = currentQuestion.example;
             document.getElementById('example-block').classList.remove('hidden');
-            
-            changeLanguage(); // Sets boilerplate
+            changeLanguage();
         }
 
         async function checkStatus() {
@@ -152,8 +316,8 @@
             const res = await fetch('/status'), data = await res.json();
             const badge = document.getElementById('badge'), ed = document.getElementById('editor-pane');
             badge.innerText = "PROCTOR: " + data.status;
-            if(data.status === "VIOLATION") { badge.className = "px-3 py-1 rounded bg-red-900/30 text-[10px] font-bold border border-red-800 text-red-500"; ed.classList.add('violation-glow'); }
-            else { badge.className = "px-3 py-1 rounded bg-green-900/30 text-[10px] font-bold border border-green-800 text-green-500"; ed.classList.remove('violation-glow'); }
+            if(data.status === "VIOLATION") { badge.className = "px-3 py-1 rounded bg-red-900/30 text-[10px] font-bold border border-red-800 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]"; ed.classList.add('violation-glow'); }
+            else { badge.className = "px-3 py-1 rounded bg-green-900/30 text-[10px] font-bold border border-green-800 text-green-500 shadow-[0_0_10px_rgba(34,197,94,0.1)]"; ed.classList.remove('violation-glow'); }
         }
 
         async function runCode() {
@@ -161,13 +325,8 @@
             rb.disabled = true; rb.innerText = "..."; st.innerText = "Testing...";
             try {
                 const res = await fetch('/run_code', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ 
-                        code: editor.getValue(), 
-                        language: document.getElementById('lang-select').value,
-                        question_id: currentQuestion.id
-                    })
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ code: editor.getValue(), language: document.getElementById('lang-select').value, question_id: currentQuestion.id })
                 });
                 const data = await res.json();
                 co.innerText = data.stdout;

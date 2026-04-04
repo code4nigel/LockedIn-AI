@@ -13,7 +13,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
-# Import our custom logic
 from backend.ai_proctor.tracker import FaceTracker
 from backend.ai_proctor.questions import get_question_by_difficulty
 
@@ -55,21 +54,19 @@ def generate_frames():
             continue
         
         try:
-            # IMPORTANT: Your tracker.py returns (face_count, looking_away)
             face_count, looking_away = tracker.process_frame(frame)
             
-            # Proctoring logic
             if face_count != 1 or looking_away:
                 proctor_state["status"] = "VIOLATION"
-                color = (0, 0, 255) # Red
+                color = (0, 0, 255)
             else:
                 proctor_state["status"] = "SECURE"
-                color = (0, 255, 0) # Green
+                color = (0, 255, 0)
                 
             cv2.putText(frame, f"AI: {proctor_state['status']}", (10, 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             if not ret: continue
             
             yield (b'--frame\r\n'
@@ -93,7 +90,6 @@ def start_test():
     with camera_lock:
         if not proctor_state["is_active"]:
             camera = cv2.VideoCapture(0)
-            # Allow camera to stabilize
             time.sleep(0.5)
             proctor_state["is_active"] = True
             proctor_state["violations"] = 0
@@ -136,14 +132,26 @@ def run_code():
         }, timeout=10).json()
         
         run = res.get('run', {})
-        output = run.get('stdout', '') + run.get('stderr', '')
-        success = (run.get('code') == 0 and not run.get('stderr'))
+        stdout = run.get('stdout', '')
+        stderr = run.get('stderr', '')
         
+        # Determine success
+        success = (run.get('code') == 0 and not stderr)
+        
+        # If there is stdout, we show it. If there is stderr, we append it.
+        # This ensures print statements are visible.
+        final_output = stdout if stdout else ""
+        if stderr:
+            final_output += "\n--- ERRORS ---\n" + stderr
+        
+        if not final_output:
+            final_output = "> Code executed successfully (No Output)."
+
         if success:
             proctor_state["current_difficulty"] = min(10, proctor_state["current_difficulty"] + 1)
             
         return jsonify({
-            "stdout": output if output else "> Code executed successfully.",
+            "stdout": final_output,
             "status": {"id": 3 if success else 11, "description": "Accepted" if success else "Error"}
         })
     except Exception as e:

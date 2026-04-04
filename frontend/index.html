@@ -34,14 +34,8 @@
             42% { transform: scale(1.1); box-shadow: 0 0 25px rgba(239,68,68,0.8); }
             70% { transform: scale(1); box-shadow: 0 0 10px rgba(239,68,68,0.4); }
         }
-        .timer-warning {
-            animation: heartbeat 1.5s infinite;
-            border-color: #ef4444 !important;
-        }
-        
-        .mic-pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
+        .timer-warning { animation: heartbeat 1.5s infinite; border-color: #ef4444 !important; }
+        .mic-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
         .glass-card {
             background: rgba(24, 24, 27, 0.8);
@@ -200,9 +194,10 @@
                         <span class="text-3xl font-black text-white text-glow-blue" id="report-level">1</span>
                     </div>
                     
-                    <div class="bg-zinc-900/60 border border-zinc-700/50 p-4 rounded-xl text-center">
-                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-1">Proctoring Violations</span>
-                        <span class="text-3xl font-black" id="report-violations">0</span>
+                    <div class="bg-zinc-900/60 border border-zinc-700/50 p-4 rounded-xl text-center cursor-pointer hover:bg-zinc-800/80 transition hover:border-red-500/50 group" onclick="openLogsModal()">
+                        <span class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest block mb-1 group-hover:text-zinc-400 transition">Proctoring Violations</span>
+                        <span class="text-3xl font-black transition-colors" id="report-violations">0</span>
+                        <span class="text-[9px] text-blue-400 mt-1 block uppercase tracking-widest font-bold">View Log</span>
                     </div>
 
                     <div class="bg-zinc-900/60 border border-zinc-700/50 p-4 rounded-xl text-center">
@@ -223,17 +218,55 @@
         </div>
     </div>
 
+    <!-- Detailed Violation Logs Modal -->
+    <div id="logs-modal" class="hidden fixed inset-0 bg-black/80 modal-blur z-[70] flex items-center justify-center transition-opacity">
+        <div class="glass-card rounded-2xl w-[450px] shadow-2xl overflow-hidden transform transition-all relative flex flex-col max-h-[80vh]">
+            <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-[#0f0f0f]">
+                <div>
+                    <h3 class="text-white text-lg font-bold uppercase tracking-tight">Violation History</h3>
+                    <p class="text-zinc-500 text-xs mt-1">Detailed log of detected incidents.</p>
+                </div>
+                <button onclick="closeModal('logs-modal')" class="text-zinc-500 hover:text-white transition p-2 bg-zinc-900 rounded-full border border-zinc-800 hover:bg-zinc-800">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1 bg-[#0a0a0a]" id="logs-container">
+                <!-- Logs injected here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
         let editor, testing = false, statusTimer;
         let currentQuestion = null;
         let testTimer, timeLeft = 0, totalDuration = 0;
+        let sessionLogs = [];
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('monaco-anchor'), {
                 value: "# Start a session to load code.",
                 language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true, fontSize: 13, minimap: { enabled: false }
             });
+        });
+
+        // Smart Tab Switching Detection
+        document.addEventListener("visibilitychange", () => {
+            if (testing) {
+                if (document.hidden) {
+                    fetch('/log_violation', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ reason: 'TAB SWITCHED' })
+                    });
+                } else {
+                    // Delay clearing the alert for 3 seconds so the user can read it
+                    setTimeout(() => {
+                        if (!document.hidden) fetch('/clear_violation', { method: 'POST' });
+                    }, 3000);
+                }
+            }
         });
 
         const leftPane = document.getElementById('left-pane'), resizerV = document.getElementById('resizer-v'), editorPane = document.getElementById('editor-pane'), resizerH = document.getElementById('resizer-h');
@@ -281,18 +314,8 @@
 
         function runTimerLogic() {
             const badge = document.getElementById('timer-badge'), txt = document.getElementById('timer-text'), icon = document.getElementById('timer-icon');
-
-            const setNormal = () => {
-                badge.className = "flex items-center gap-2 px-4 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 font-mono text-sm tracking-widest transition-all duration-300";
-                txt.className = "timer-default font-bold";
-                icon.className = "w-4 h-4 text-cyan-400";
-            };
-
-            const setWarning = () => {
-                badge.className = "flex items-center gap-2 px-4 py-1.5 rounded-md bg-red-900/20 border-2 font-mono text-sm tracking-widest transition-all duration-300 timer-warning";
-                txt.className = "text-red-400 font-bold";
-                icon.className = "w-4 h-4 text-red-400";
-            };
+            const setNormal = () => { badge.className = "flex items-center gap-2 px-4 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 font-mono text-sm tracking-widest transition-all duration-300"; txt.className = "timer-default font-bold"; icon.className = "w-4 h-4 text-cyan-400"; };
+            const setWarning = () => { badge.className = "flex items-center gap-2 px-4 py-1.5 rounded-md bg-red-900/20 border-2 font-mono text-sm tracking-widest transition-all duration-300 timer-warning"; txt.className = "text-red-400 font-bold"; icon.className = "w-4 h-4 text-red-400"; };
 
             setNormal();
             txt.innerText = formatTime(timeLeft);
@@ -303,9 +326,8 @@
 
                 let tenPercentMark = Math.floor(totalDuration * 0.1);
 
-                if (timeLeft <= 60) {
-                    setWarning();
-                } else if (timeLeft === tenPercentMark || (timeLeft === 300 && totalDuration > 300)) {
+                if (timeLeft <= 60) { setWarning(); } 
+                else if (timeLeft === tenPercentMark || (timeLeft === 300 && totalDuration > 300)) {
                     setWarning();
                     setTimeout(() => { if (timeLeft > 60) setNormal(); }, 3000);
                 }
@@ -330,11 +352,7 @@
             }
             
             const btn = document.getElementById('toggleBtn');
-            await fetch('/start_test', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ audio: audioEnabled })
-            });
+            await fetch('/start_test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ audio: audioEnabled }) });
             
             btn.innerText = "Stop Session"; 
             btn.className = "px-5 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-xs font-bold transition shadow-lg shadow-red-900/20";
@@ -372,27 +390,47 @@
             vText.innerText = data.violations;
             vText.className = data.violations > 0 ? "text-3xl font-black text-red-500" : "text-3xl font-black text-green-400";
             
+            sessionLogs = data.violation_logs || [];
+            
             let profile = "Solid performance.";
-            if (data.syntax_errors === 0 && data.logic_errors === 0) {
-                profile = "Flawless execution. Your code was perfect.";
-            } else if (data.syntax_errors > data.logic_errors) {
-                profile = "You struggle with syntax. Review your language rules.";
-            } else if (data.logic_errors > data.syntax_errors) {
-                profile = "Good typing, but poor logic. Try to trace your algorithm first.";
-            } else {
-                profile = "You make an even amount of syntax and logic mistakes.";
-            }
+            if (data.syntax_errors === 0 && data.logic_errors === 0) profile = "Flawless execution. Your code was perfect.";
+            else if (data.syntax_errors > data.logic_errors) profile = "You struggle with syntax. Review your language rules.";
+            else if (data.logic_errors > data.syntax_errors) profile = "Good typing, but poor logic. Try to trace your algorithm first.";
+            else profile = "You make an even amount of syntax and logic mistakes.";
+            
             document.getElementById('report-ai-text').innerText = profile;
-
             openModal('report-modal');
         }
 
-        async function toggleTest() {
-            if (!testing) {
-                openModal('time-modal');
-            } else { 
-                await endSessionAndShowReport();
+        function openLogsModal() {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = "";
+            
+            if(sessionLogs.length === 0) {
+                container.innerHTML = "<p class='text-zinc-500 text-sm text-center py-6'>No violations recorded.</p>";
+            } else {
+                sessionLogs.forEach(log => {
+                    let icon = `<svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>`;
+                    if(log.type.includes("AUDIO")) icon = `<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>`;
+                    if(log.type.includes("TAB")) icon = `<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>`;
+                    
+                    container.innerHTML += `
+                        <div class="flex items-center gap-4 bg-zinc-900 border border-zinc-800 p-3 rounded-lg mb-2">
+                            <div class="bg-black p-2 rounded-md">${icon}</div>
+                            <div class="flex-1">
+                                <span class="text-white text-xs font-bold block">${log.type}</span>
+                            </div>
+                            <span class="text-zinc-500 font-mono text-xs">${log.time}</span>
+                        </div>
+                    `;
+                });
             }
+            openModal('logs-modal');
+        }
+
+        async function toggleTest() {
+            if (!testing) openModal('time-modal');
+            else await endSessionAndShowReport();
         }
 
         async function loadQuestion() {

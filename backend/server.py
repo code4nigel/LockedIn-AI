@@ -8,6 +8,7 @@ import time
 import webbrowser
 import subprocess
 import tempfile
+from datetime import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
@@ -27,7 +28,8 @@ proctor_state = {
     "current_difficulty": 1,
     "audio_enabled": False,
     "syntax_errors": 0,
-    "logic_errors": 0
+    "logic_errors": 0,
+    "violation_logs": []
 }
 
 camera = None
@@ -38,6 +40,10 @@ audio_tracker = AudioMonitor(threshold=150)
 @app.route('/')
 def index():
     return render_template('index.html')
+
+def log_incident(reason):
+    timestamp = datetime.now().strftime("%I:%M:%S %p")
+    proctor_state["violation_logs"].append({"time": timestamp, "type": reason})
 
 def generate_frames():
     global camera, proctor_state
@@ -56,10 +62,12 @@ def generate_frames():
         
         try:
             face_count, looking_away = tracker.process_frame(frame)
-            
-            # Determine current frame's status
             current_status = "SECURE"
-            if face_count != 1 or looking_away:
+            
+            if "TAB SWITCHED" in proctor_state["status"]:
+                current_status = proctor_state["status"]
+                color = (0, 0, 255)
+            elif face_count != 1 or looking_away:
                 current_status = "VIOLATION (LOOK AWAY)"
                 color = (0, 0, 255)
             elif proctor_state["audio_enabled"] and audio_tracker.audio_violation:
@@ -69,11 +77,11 @@ def generate_frames():
                 current_status = "SECURE"
                 color = (0, 255, 0)
                 
-            # Only add a violation if the status CHANGED from SECURE to a VIOLATION
             if current_status != "SECURE" and proctor_state["status"] == "SECURE":
                 proctor_state["violations"] += 1
+                reason = current_status.replace("VIOLATION (", "").replace(")", "")
+                log_incident(reason)
                 
-            # Update the global state
             proctor_state["status"] = current_status
                 
             cv2.putText(frame, f"AI: {proctor_state['status']}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
@@ -107,7 +115,8 @@ def start_test():
             proctor_state["syntax_errors"] = 0
             proctor_state["logic_errors"] = 0
             proctor_state["current_difficulty"] = 1
-            proctor_state["status"] = "SECURE" # Reset state
+            proctor_state["status"] = "SECURE" 
+            proctor_state["violation_logs"] = []
             
             if proctor_state["audio_enabled"]:
                 audio_tracker.start()
@@ -118,20 +127,34 @@ def start_test():
 def stop_test():
     global camera, proctor_state, audio_tracker
     proctor_state["is_active"] = False
-    
-    if audio_tracker:
-        audio_tracker.stop()
-        
+    if audio_tracker: audio_tracker.stop()
     with camera_lock:
         if camera is not None:
             camera.release()
             camera = None
-            
     return jsonify({"status": "stopped"})
 
 @app.route('/status')
 def get_status():
     return jsonify(proctor_state)
+
+@app.route('/log_violation', methods=['POST'])
+def log_violation():
+    global proctor_state
+    if proctor_state["is_active"]:
+        data = request.json or {}
+        reason = data.get("reason", "TAB SWITCHED")
+        proctor_state["violations"] += 1
+        log_incident(reason)
+        proctor_state["status"] = f"VIOLATION ({reason})"
+    return jsonify({"status": "logged"})
+
+@app.route('/clear_violation', methods=['POST'])
+def clear_violation():
+    global proctor_state
+    if proctor_state["is_active"] and "TAB SWITCHED" in proctor_state["status"]:
+        proctor_state["status"] = "SECURE"
+    return jsonify({"status": "cleared"})
 
 @app.route('/run_code', methods=['POST'])
 def run_code():
@@ -152,29 +175,22 @@ def run_code():
             if lang == "python":
                 full_code = code + "\n" + question["python_test"]
                 file_path = os.path.join(temp_dir, "solution.py")
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(full_code)
+                with open(file_path, "w", encoding="utf-8") as f: f.write(full_code)
                 
                 res = subprocess.run([sys.executable, file_path], text=True, capture_output=True, timeout=5)
                 if res.returncode != 0:
                     is_error = True
                     output_text += "--- TEST FAILED ---\n" + res.stderr
-                    
                     if "SyntaxError" in res.stderr or "IndentationError" in res.stderr:
                         proctor_state["syntax_errors"] += 1
-                    else:
-                        proctor_state["logic_errors"] += 1
-                else:
-                    output_text += res.stdout
+                    else: proctor_state["logic_errors"] += 1
+                else: output_text += res.stdout
 
             elif lang == "java":
                 sol_path = os.path.join(temp_dir, "Solution.java")
-                with open(sol_path, "w", encoding="utf-8") as f:
-                    f.write(code)
-                
+                with open(sol_path, "w", encoding="utf-8") as f: f.write(code)
                 main_path = os.path.join(temp_dir, "Main.java")
-                with open(main_path, "w", encoding="utf-8") as f:
-                    f.write(question["java_test"])
+                with open(main_path, "w", encoding="utf-8") as f: f.write(question["java_test"])
                 
                 comp = subprocess.run(["javac", sol_path, main_path], text=True, capture_output=True, timeout=5)
                 if comp.returncode != 0:
@@ -187,21 +203,14 @@ def run_code():
                         is_error = True
                         output_text += "--- TEST FAILED ---\n" + run_res.stderr
                         proctor_state["logic_errors"] += 1
-                    else:
-                        output_text += run_res.stdout
+                    else: output_text += run_res.stdout
 
-        if not output_text.strip() and not is_error:
-            output_text = "> Execution complete."
-
+        if not output_text.strip() and not is_error: output_text = "> Execution complete."
         success = not is_error
         if success and "ALL TESTS PASSED" in output_text:
             proctor_state["current_difficulty"] = min(10, proctor_state["current_difficulty"] + 1)
             
-        return jsonify({
-            "stdout": output_text,
-            "status": {"id": 3 if success else 11, "description": "Accepted" if success else "Test Failed"}
-        })
-
+        return jsonify({"stdout": output_text, "status": {"id": 3 if success else 11, "description": "Accepted" if success else "Test Failed"}})
     except subprocess.TimeoutExpired:
         proctor_state["logic_errors"] += 1
         return jsonify({"stdout": "Execution timed out.", "status": {"id": 5, "description": "Time Limit Exceeded"}})

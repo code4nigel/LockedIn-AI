@@ -18,8 +18,14 @@ from backend.ai_proctor.tracker import FaceTracker
 from backend.ai_proctor.audio_monitor import AudioMonitor
 from backend.ai_proctor.questions import get_question_by_difficulty, get_question_by_id
 
+# NEW: Import our database logic
+from backend.database import init_db, save_session, get_profile
+
 app = Flask(__name__, template_folder=os.path.join(project_root, 'frontend'), static_folder=os.path.join(project_root, 'frontend'))
 CORS(app)
+
+# NEW: Initialize the database
+init_db()
 
 proctor_state = {
     "is_active": False, 
@@ -100,6 +106,11 @@ def get_current_question():
     q = get_question_by_difficulty(proctor_state["current_difficulty"], 0)
     return jsonify(q)
 
+# NEW: Route to fetch dashboard profile data
+@app.route('/get_profile_data')
+def get_profile_data():
+    return jsonify(get_profile())
+
 @app.route('/start_test', methods=['POST'])
 def start_test():
     global camera, proctor_state, audio_tracker
@@ -126,6 +137,12 @@ def start_test():
 @app.route('/stop_test')
 def stop_test():
     global camera, proctor_state, audio_tracker
+    
+    # NEW: Save session to database before turning everything off
+    if proctor_state["is_active"]:
+        save_session(proctor_state["current_difficulty"], proctor_state["violations"],
+                     proctor_state["syntax_errors"], proctor_state["logic_errors"])
+                     
     proctor_state["is_active"] = False
     if audio_tracker: audio_tracker.stop()
     with camera_lock:

@@ -51,7 +51,7 @@
 </head>
 <body>
 
-    <!-- AUTHENTICATION MODAL (Matches strict dark theme) -->
+    <!-- AUTHENTICATION MODAL -->
     <div id="auth-modal" class="hidden fixed inset-0 bg-black/90 z-[200] flex items-center justify-center modal-blur">
         <div class="bg-[#0f0f0f] border border-zinc-800 rounded-md w-[400px] shadow-2xl overflow-hidden">
             <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-[#0a0a0a]">
@@ -542,7 +542,8 @@
             timeLeft = seconds;
             totalDuration = seconds;
             
-            switchTab('editor'); // Switch back to the editor view
+            // BUG FIX: Switch back to the editor view
+            switchTab('editor');
             
             const audioEnabled = document.getElementById('audio-toggle').checked;
             if(audioEnabled) {
@@ -573,7 +574,8 @@
         }
 
         async function endSessionAndShowReport() {
-            testing = false; // Reset testing flag
+            // BUG FIX: Reset testing flag so clicking "Start Session" triggers setup modal again
+            testing = false; 
 
             clearInterval(statusTimer);
             clearInterval(testTimer);
@@ -626,7 +628,7 @@
                 sessionLogs.forEach(log => {
                     let icon = `<svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>`;
                     if(log.type.includes("AUDIO")) icon = `<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>`;
-                    if(log.type.includes("TAB")) icon = `<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012-2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>`;
+                    if(log.type.includes("TAB")) icon = `<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012-2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>`;
                     
                     container.innerHTML += `
                         <div class="flex items-center gap-4 bg-zinc-900 border border-zinc-800 p-3 rounded-lg mb-2">
@@ -640,6 +642,14 @@
                 });
             }
             openModal('logs-modal');
+        }
+
+        async function toggleTest() {
+            if (!testing) {
+                openModal('time-modal');
+            } else { 
+                await endSessionAndShowReport();
+            }
         }
 
         async function loadQuestion() {

@@ -5,7 +5,6 @@
     <title>LockedIn | 7-Star Editor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
-    <!-- Added Chart.js for Advanced Analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background: #0a0a0a; color: #d4d4d8; height: 100vh; overflow: hidden; display: flex; flex-direction: column; margin: 0; }
@@ -171,7 +170,6 @@
     <main id="view-dashboard" class="hidden pane-container flex-col overflow-y-auto bg-[#0a0a0a] p-8 items-center">
         <div class="max-w-5xl w-full flex flex-col gap-6">
             <div class="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-8 flex items-start justify-between relative overflow-hidden">
-                <!-- Clearer Logout Button Top Right -->
                 <button onclick="logout()" class="absolute top-6 right-6 border border-red-900/50 text-red-500 hover:bg-red-900/20 px-4 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                     Logout
@@ -194,7 +192,6 @@
                     <span class="text-4xl font-black text-white" id="prof-count">0</span>
                 </div>
             </div>
-
             <div>
                 <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 px-1">Session History</h3>
                 <div id="history-list" class="flex flex-col gap-3"></div>
@@ -245,6 +242,7 @@
         </div>
     </div>
 
+    <!-- Final Report Modal -->
     <div id="report-modal" class="hidden fixed inset-0 bg-black/80 modal-blur z-[60] flex items-center justify-center transition-opacity">
         <div class="glass-card rounded-2xl w-[500px] overflow-hidden transform transition-all relative">
             <div class="absolute -top-20 -right-20 w-40 h-40 bg-blue-600 rounded-full blur-[80px] opacity-20"></div>
@@ -289,6 +287,7 @@
         </div>
     </div>
 
+    <!-- Active Incident Logs Modal -->
     <div id="logs-modal" class="hidden fixed inset-0 bg-black/80 modal-blur z-[70] flex items-center justify-center transition-opacity">
         <div class="glass-card rounded-2xl w-[450px] shadow-2xl overflow-hidden transform transition-all relative flex flex-col max-h-[80vh]">
             <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-[#0f0f0f]">
@@ -305,7 +304,7 @@
         </div>
     </div>
 
-    <!-- NEW: ADVANCED SESSION DETAILS MODAL (With Chart.js Graph) -->
+    <!-- ADVANCED SESSION DETAILS MODAL (With Chart.js Graph) -->
     <div id="session-detail-modal" class="hidden fixed inset-0 bg-black/90 modal-blur z-[80] flex items-center justify-center transition-opacity p-6">
         <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-[#0a0a0a]">
@@ -323,7 +322,7 @@
                 <div class="grid grid-cols-4 gap-4">
                     <div class="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl text-center">
                         <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-500 block mb-1">Max Level</span>
-                        <span class="text-3xl font-black text-white" id="sd-level">0</span>
+                        <span class="text-3xl font-black text-white" id="sd-level-graph">0</span>
                     </div>
                     <div class="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl text-center">
                         <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-500 block mb-1">EXP Earned</span>
@@ -331,11 +330,11 @@
                     </div>
                     <div class="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl text-center">
                         <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-500 block mb-1">Syntax / Logic</span>
-                        <span class="text-xl font-bold text-zinc-300 mt-2 block"><span class="text-yellow-500" id="sd-syntax">0</span> / <span class="text-purple-400" id="sd-logic">0</span></span>
+                        <span class="text-xl font-bold text-zinc-300 mt-2 block"><span class="text-yellow-500" id="sd-syntax-graph">0</span> / <span class="text-purple-400" id="sd-logic-graph">0</span></span>
                     </div>
                     <div class="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl text-center">
                         <span class="text-[9px] font-bold uppercase tracking-widest text-zinc-500 block mb-1">Proctor Flags</span>
-                        <span class="text-3xl font-black text-red-500" id="sd-violations">0</span>
+                        <span class="text-3xl font-black text-red-500" id="sd-violations-graph">0</span>
                     </div>
                 </div>
 
@@ -368,7 +367,7 @@
         let testTimer, timeLeft = 0, totalDuration = 0;
         let sessionLogs = [];
         let isLoginMode = true;
-        let chartInstance = null; // Global reference for Chart.js instance
+        let chartInstance = null; 
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('monaco-anchor'), {
@@ -517,7 +516,7 @@
         async function loadProfile() {
             try {
                 const res = await fetch('/get_profile_data');
-                if (!res.ok) return; // User might be logged out
+                if (!res.ok) return; 
                 
                 const data = await res.json();
                 
@@ -536,11 +535,9 @@
                 
                 data.history.forEach(s => {
                     const volColor = s.violations > 0 ? "text-red-500" : "text-green-500";
-                    // Calculate EXP impact matching the database logic
                     const expEarned = Math.max(0, (s.max_level * 100) - (s.violations * 10));
                     
-                    // Create safe JSON string for the onclick handler
-                    const sessionJson = JSON.stringify(s).replace(/"/g, '&quot;');
+                    const sessionString = encodeURIComponent(JSON.stringify(s));
                     
                     list.innerHTML += `
                         <div class="bg-[#0f0f0f] border border-zinc-800 p-5 rounded-xl flex justify-between items-center hover:border-zinc-700 transition cursor-default">
@@ -563,8 +560,7 @@
                                     <span class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-1">Violations</span>
                                     <span class="text-xl font-black ${volColor}">${s.violations}</span>
                                 </div>
-                                <!-- NEW DETAILS BUTTON -->
-                                <button onclick="openSessionDetails(${sessionJson}, ${expEarned})" class="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-md transition ml-2 border border-zinc-700">
+                                <button onclick="openSessionDetails('${sessionString}', ${expEarned})" class="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-md transition ml-2 border border-zinc-700">
                                     Details
                                 </button>
                             </div>
@@ -576,17 +572,16 @@
             }
         }
 
-        // --- NEW MODAL LOGIC & CHART.JS RENDERING ---
-        function openSessionDetails(session, expEarned) {
-            // Set text values
-            document.getElementById('sd-timestamp').innerText = session.timestamp;
-            document.getElementById('sd-level').innerText = session.max_level;
-            document.getElementById('sd-exp').innerText = `+${expEarned}`;
-            document.getElementById('sd-syntax').innerText = session.syntax_errors;
-            document.getElementById('sd-logic').innerText = session.logic_errors;
-            document.getElementById('sd-violations').innerText = session.violations;
+        function openSessionDetails(sessionStr, expEarned) {
+            const session = JSON.parse(decodeURIComponent(sessionStr));
 
-            // Generate AI Text
+            document.getElementById('sd-timestamp').innerText = session.timestamp;
+            document.getElementById('sd-level-graph').innerText = session.max_level;
+            document.getElementById('sd-exp').innerText = `+${expEarned}`;
+            document.getElementById('sd-syntax-graph').innerText = session.syntax_errors;
+            document.getElementById('sd-logic-graph').innerText = session.logic_errors;
+            document.getElementById('sd-violations-graph').innerText = session.violations;
+
             let analysis = `In this session, you reached Level ${session.max_level} and earned ${expEarned} EXP. `;
             if (session.violations > 2) analysis += "The AI proctor flagged multiple violations, heavily impacting your final score. ";
             else if (session.violations === 0) analysis += "Your session was entirely secure with zero AI proctoring flags! ";
@@ -597,25 +592,19 @@
             
             document.getElementById('sd-analysis-text').innerText = analysis;
 
-            // Generate Chart.js Graph (Simulating data to match screenshot vibe)
             renderGraph(session.max_level);
-
             openModal('session-detail-modal');
         }
 
         function renderGraph(maxLevel) {
             const ctx = document.getElementById('sessionGraph').getContext('2d');
             
-            // Destroy old chart if exists
             if (chartInstance) chartInstance.destroy();
 
-            // Generate mock data points up to maxLevel (at least 3 points for a line)
             const points = Math.max(3, maxLevel);
             const labels = Array.from({length: points}, (_, i) => `Lvl ${i+1}`);
             
-            // Mock user time: Starts low, goes up. Add some randomness.
             const userData = labels.map((_, i) => parseFloat(((i + 1) * 2.5 + (Math.random() * 2)).toFixed(1)));
-            // Mock global best time: Generally faster
             const globalData = labels.map((_, i) => parseFloat(((i + 1) * 1.5 + (Math.random() * 1.5)).toFixed(1)));
 
             chartInstance = new Chart(ctx, {
@@ -626,7 +615,7 @@
                         {
                             label: 'Your Time (mins)',
                             data: userData,
-                            borderColor: '#10b981', // Neon Green
+                            borderColor: '#10b981',
                             backgroundColor: 'rgba(16, 185, 129, 0.1)',
                             borderWidth: 3,
                             fill: true,
@@ -638,7 +627,7 @@
                         {
                             label: 'Global Best',
                             data: globalData,
-                            borderColor: '#a1a1aa', // Gray
+                            borderColor: '#a1a1aa',
                             borderWidth: 2,
                             borderDash: [5, 5],
                             fill: false,
@@ -696,14 +685,45 @@
             }, 1000);
         }
 
+        async function toggleTest() {
+            if (!testing) {
+                openModal('time-modal');
+            } else { 
+                await endSessionAndShowReport();
+            }
+        }
+
+        async function loadQuestion() {
+            try {
+                const res = await fetch('/get_current_question');
+                currentQuestion = await res.json();
+                
+                if (!currentQuestion) {
+                    currentQuestion = {
+                        id: 0, title: "Test Connection", description: "Database empty or backend error. Code editor unlocked.",
+                        difficulty: 1, example: "N/A", python_boilerplate: "# Enter code here", java_boilerplate: "// Enter code here"
+                    };
+                }
+                
+                document.getElementById('q-title').innerText = currentQuestion.title;
+                document.getElementById('q-desc').innerText = currentQuestion.description;
+                document.getElementById('q-diff').innerText = "Level " + currentQuestion.difficulty;
+                document.getElementById('q-example').innerText = currentQuestion.example;
+                document.getElementById('example-block').classList.remove('hidden');
+                changeLanguage();
+            } catch(e) {
+                console.error("Failed to load question details", e);
+                throw e; 
+            }
+        }
+
         async function startSession(seconds) {
             closeModal('time-modal');
             testing = true;
             timeLeft = seconds;
             totalDuration = seconds;
             
-            // BUG FIX 1: Instantly switch back to the workspace tab so the test is visible!
-            switchTab('editor');
+            switchTab('editor'); 
             
             const audioEnabled = document.getElementById('audio-toggle').checked;
             if(audioEnabled) {
@@ -733,51 +753,88 @@
                 document.getElementById('cam-off').classList.add('hidden');
                 document.getElementById('question-area').classList.remove('opacity-40');
                 document.getElementById('runBtn').disabled = false;
-                editor.updateOptions({ readOnly: false });
+                if(editor) editor.updateOptions({ readOnly: false });
                 
                 await loadQuestion();
                 runTimerLogic();
                 statusTimer = setInterval(checkStatus, 1000);
             } catch(e) {
-                console.error("Failed to start session", e);
-                testing = false;
+                console.error("Critical failure during session startup:", e);
+                endSessionAndShowReport(); 
             }
         }
 
         async function endSessionAndShowReport() {
-            // BUG FIX 2: Reset testing flag so clicking Start Session again works!
             testing = false;
-
             clearInterval(statusTimer);
             clearInterval(testTimer);
-            document.getElementById('feed').src = ""; 
             
+            const feed = document.getElementById('feed');
+            if(feed) { feed.src = ""; feed.classList.add('hidden'); }
+            
+            const camOff = document.getElementById('cam-off');
+            if(camOff) camOff.classList.remove('hidden');
+
+            const qArea = document.getElementById('question-area');
+            if(qArea) qArea.classList.add('opacity-40');
+            
+            document.getElementById('q-title').innerText = "Awaiting Test...";
+            document.getElementById('q-desc').innerText = "Challenge appears on start.";
+            document.getElementById('example-block').classList.add('hidden');
+            document.getElementById('q-diff').innerText = "Lv 0";
+
+            if (editor) {
+                editor.updateOptions({ readOnly: true });
+                editor.setValue("# Start a session to load code.");
+            }
+
+            document.getElementById('console-out').innerText = "Ready...";
+            const execStatus = document.getElementById('exec-status');
+            if(execStatus) {
+                execStatus.innerText = "Idle";
+                execStatus.className = "text-[9px] font-bold uppercase tracking-widest text-zinc-600";
+            }
+            
+            const runBtn = document.getElementById('runBtn');
+            if(runBtn) runBtn.disabled = true;
+
+            const badge = document.getElementById('badge');
+            if(badge) {
+                badge.innerText = "System Offline";
+                badge.className = "px-3 py-1 rounded bg-zinc-900 text-[10px] font-bold border border-zinc-800 uppercase tracking-widest text-zinc-500";
+            }
+            
+            const edPane = document.getElementById('editor-pane');
+            if(edPane) edPane.classList.remove('violation-glow', 'audio-glow');
+            
+            document.getElementById('mic-badge').classList.add('hidden');
+            document.getElementById('mic-badge').classList.remove('flex');
+            
+            const btn = document.getElementById('toggleBtn');
+            btn.innerText = "START SESSION";
+            btn.className = "px-6 py-2 rounded-md bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white text-[11px] font-bold uppercase tracking-widest transition shadow-lg";
+
             try {
                 const res = await fetch('/status');
                 const data = await res.json();
                 
                 await fetch('/stop_test');
                 
-                document.getElementById('mic-badge').classList.add('hidden');
-                document.getElementById('mic-badge').classList.remove('flex');
-                
-                const btn = document.getElementById('toggleBtn');
-                btn.innerText = "START SESSION";
-                btn.className = "px-6 py-2 rounded-md bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white text-[11px] font-bold uppercase tracking-widest transition shadow-lg";
-                
-                document.getElementById('report-level').innerText = data.current_difficulty || 0;
+                document.getElementById('report-level').innerText = data.current_difficulty || 1;
                 document.getElementById('report-syntax').innerText = data.syntax_errors || 0;
                 document.getElementById('report-logic').innerText = data.logic_errors || 0;
                 
                 const vText = document.getElementById('report-violations');
                 const violations = data.violations || 0;
-                vText.innerText = violations;
-                vText.className = violations > 0 ? "text-3xl font-black text-red-500" : "text-3xl font-black text-green-400";
+                if(vText) {
+                    vText.innerText = violations;
+                    vText.className = violations > 0 ? "text-3xl font-black text-red-500" : "text-3xl font-black text-green-400";
+                }
                 
                 sessionLogs = data.violation_logs || [];
                 
                 let profile = "Solid performance.";
-                if (data.syntax_errors === 0 && data.logic_errors === 0) {
+                if ((data.syntax_errors === 0 || !data.syntax_errors) && (data.logic_errors === 0 || !data.logic_errors)) {
                     profile = "Flawless execution. Your code was perfect.";
                 } else if (data.syntax_errors > data.logic_errors) {
                     profile = "You struggle with syntax. Review your language rules.";
@@ -789,8 +846,8 @@
                 document.getElementById('report-ai-text').innerText = profile;
 
                 openModal('report-modal');
-            } catch(e) {
-                console.error("Failed to end session properly", e);
+            } catch (e) {
+                console.error("Error stopping session", e);
             }
         }
 
@@ -818,25 +875,6 @@
                 });
             }
             openModal('logs-modal');
-        }
-
-        async function toggleTest() {
-            if (!testing) {
-                openModal('time-modal');
-            } else { 
-                await endSessionAndShowReport();
-            }
-        }
-
-        async function loadQuestion() {
-            const res = await fetch('/get_current_question');
-            currentQuestion = await res.json();
-            document.getElementById('q-title').innerText = currentQuestion.title;
-            document.getElementById('q-desc').innerText = currentQuestion.description;
-            document.getElementById('q-diff').innerText = "Level " + currentQuestion.difficulty;
-            document.getElementById('q-example').innerText = currentQuestion.example;
-            document.getElementById('example-block').classList.remove('hidden');
-            changeLanguage();
         }
 
         async function checkStatus() {

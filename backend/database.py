@@ -28,6 +28,18 @@ def init_db():
             FOREIGN KEY(user_id) REFERENCES users(id)
         )
     ''')
+    
+    # Safely upgrade existing database tables without deleting the file
+    try:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN violation_logs TEXT DEFAULT '[]'")
+    except sqlite3.OperationalError:
+        pass # Column already exists
+        
+    try:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN level_times TEXT DEFAULT '[]'")
+    except sqlite3.OperationalError:
+        pass # Column already exists
+        
     conn.commit()
     conn.close()
 
@@ -52,15 +64,15 @@ def get_user_by_username(username):
     conn.close()
     return dict(user) if user else None
 
-def save_session(user_id, max_level, violations, syntax, logic):
+def save_session(user_id, max_level, violations, syntax, logic, violation_logs="[]", level_times="[]"):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     points = max(0, (max_level * 100) - (violations * 10))
     
     cursor.execute('''INSERT INTO sessions 
-                      (user_id, max_level, violations, syntax_errors, logic_errors) 
-                      VALUES (?, ?, ?, ?, ?)''', (user_id, max_level, violations, syntax, logic))
+                      (user_id, max_level, violations, syntax_errors, logic_errors, violation_logs, level_times) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?)''', (user_id, max_level, violations, syntax, logic, violation_logs, level_times))
     
     cursor.execute("UPDATE users SET total_points = total_points + ? WHERE id = ?", (points, user_id))
     

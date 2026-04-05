@@ -9,6 +9,7 @@ import time
 import webbrowser
 import subprocess
 import tempfile
+import json
 from datetime import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +29,8 @@ init_db()
 
 proctor_state = {
     "is_active": False, "status": "SECURE", "violations": 0, "current_difficulty": 1,
-    "audio_enabled": False, "syntax_errors": 0, "logic_errors": 0, "violation_logs": []
+    "audio_enabled": False, "syntax_errors": 0, "logic_errors": 0, "violation_logs": [],
+    "level_times": [], "last_level_time": None
 }
 
 camera = None
@@ -153,10 +155,13 @@ def start_test():
         if not proctor_state["is_active"]:
             camera = cv2.VideoCapture(0)
             time.sleep(0.5)
+            
+            # Initialize tracking and specific timestamps
             proctor_state.update({
                 "is_active": True, "audio_enabled": settings.get('audio', False),
                 "violations": 0, "syntax_errors": 0, "logic_errors": 0,
-                "current_difficulty": 1, "status": "SECURE", "violation_logs": []
+                "current_difficulty": 1, "status": "SECURE", "violation_logs": [],
+                "level_times": [], "last_level_time": time.time()
             })
             if proctor_state["audio_enabled"]: audio_tracker.start()
     return jsonify({"status": "started"})
@@ -167,8 +172,12 @@ def stop_test():
     user_id = session.get('user_id')
     
     if proctor_state["is_active"] and user_id:
+        # Save specific logs and tracked times for the graphs
+        v_logs = json.dumps(proctor_state.get("violation_logs", []))
+        l_times = json.dumps(proctor_state.get("level_times", []))
+        
         save_session(user_id, proctor_state["current_difficulty"], proctor_state["violations"], 
-                     proctor_state["syntax_errors"], proctor_state["logic_errors"])
+                     proctor_state["syntax_errors"], proctor_state["logic_errors"], v_logs, l_times)
                      
     proctor_state["is_active"] = False
     if audio_tracker: audio_tracker.stop()
@@ -216,8 +225,18 @@ def run_code():
                     if "SyntaxError" in res.stderr or "IndentationError" in res.stderr: proctor_state["syntax_errors"] += 1
                     else: proctor_state["logic_errors"] += 1
                 else: output_text = res.stdout
+        
         success = not is_error and "ALL TESTS PASSED" in output_text
-        if success: proctor_state["current_difficulty"] = min(10, proctor_state["current_difficulty"] + 1)
+        if success: 
+            # Track real time taken for this question for the Graph
+            current_time = time.time()
+            time_taken = current_time - proctor_state.get("last_level_time", current_time)
+            
+            if "level_times" not in proctor_state: proctor_state["level_times"] = []
+            proctor_state["level_times"].append(round(time_taken / 60.0, 2)) # Save in minutes
+            proctor_state["last_level_time"] = current_time
+            proctor_state["current_difficulty"] = min(10, proctor_state["current_difficulty"] + 1)
+            
         return jsonify({"stdout": output_text, "status": {"id": 3 if success else 11, "description": "Accepted" if success else "Test Failed"}})
     except Exception as e: return jsonify({"stdout": f"Server Error: {str(e)}", "status": {"id": 6}})
 

@@ -34,7 +34,11 @@
             42% { transform: scale(1.1); box-shadow: 0 0 25px rgba(239,68,68,0.8); }
             70% { transform: scale(1); box-shadow: 0 0 10px rgba(239,68,68,0.4); }
         }
-        .timer-warning { animation: heartbeat 1.5s infinite; border-color: #ef4444 !important; }
+        .timer-warning {
+            animation: heartbeat 1.5s infinite;
+            border-color: #ef4444 !important;
+        }
+        
         .mic-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
         .glass-card {
@@ -53,7 +57,6 @@
                 <div id="badge" class="px-3 py-1 rounded bg-zinc-900 text-[10px] font-bold border border-zinc-800 uppercase tracking-widest text-zinc-500">System Offline</div>
             </div>
             
-            <!-- Navigation Tabs -->
             <nav class="flex gap-4">
                 <button onclick="switchTab('editor')" id="tab-editor" class="text-xs font-bold uppercase tracking-widest text-blue-500 border-b-2 border-blue-500 pb-1">Workspace</button>
                 <button onclick="switchTab('dashboard')" id="tab-dashboard" class="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 pb-1 border-b-2 border-transparent transition">Career Hub</button>
@@ -71,13 +74,11 @@
                 <span id="timer-text" class="timer-default font-bold">00:00</span>
             </div>
             
-            <button id="toggleBtn" onclick="toggleTest()" class="px-5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-xs font-bold transition shadow-lg shadow-blue-900/20">Start Test</button>
+            <button id="toggleBtn" onclick="toggleTest()" class="px-6 py-2 rounded-md bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white text-[11px] font-bold uppercase tracking-widest transition shadow-lg">START SESSION</button>
         </div>
     </header>
 
-    <!-- VIEWS CONTAINER -->
     <main id="view-editor" class="pane-container">
-        <!-- EXACTLY YOUR UPLOADED EDITOR LAYOUT -->
         <div id="left-pane" class="w-[400px] min-w-[300px] flex flex-col shrink-0 bg-[#0a0a0a]">
             <div class="flex-1 border-r border-zinc-800 flex flex-col overflow-hidden">
                 <div class="p-3 border-b border-zinc-800 bg-[#0f0f0f] flex justify-between items-center">
@@ -135,11 +136,8 @@
         </div>
     </main>
 
-    <!-- NEW DASHBOARD VIEW (Clean, Solid Dark Theme matching the screenshots) -->
     <main id="view-dashboard" class="hidden pane-container flex-col overflow-y-auto bg-[#0a0a0a] p-8 items-center">
         <div class="max-w-5xl w-full flex flex-col gap-6">
-            
-            <!-- User Banner -->
             <div class="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-8 flex items-center justify-between">
                 <div class="flex items-center gap-6">
                     <div class="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner">
@@ -158,26 +156,19 @@
                     <span class="text-4xl font-black text-white" id="prof-count">0</span>
                 </div>
             </div>
-
-            <!-- History List -->
             <div>
                 <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 px-1">Session History</h3>
-                <div id="history-list" class="flex flex-col gap-3">
-                    <!-- History rows injected here -->
-                </div>
+                <div id="history-list" class="flex flex-col gap-3"></div>
             </div>
-            
         </div>
     </main>
 
-    <!-- Start Setup Modal -->
     <div id="time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
         <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
             <div class="p-6 border-b border-zinc-800">
                 <h3 class="text-white text-lg font-bold">Session Setup</h3>
                 <p class="text-zinc-500 text-xs mt-1">Configure your interview settings.</p>
             </div>
-            
             <div class="p-6 flex flex-col gap-4">
                 <div class="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between">
                     <div>
@@ -189,7 +180,6 @@
                         <div class="w-10 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
                     </label>
                 </div>
-
                 <button onclick="startSession(600)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group">
                     <div>
                         <span class="text-zinc-200 font-medium block text-sm">Quick Session</span>
@@ -197,7 +187,6 @@
                     </div>
                     <span class="text-blue-400 font-mono text-sm group-hover:text-blue-300 bg-blue-900/20 px-3 py-1 rounded-md">10 Min</span>
                 </button>
-                
                 <button onclick="startSession(2700)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group ring-1 ring-blue-500/30">
                     <div>
                         <span class="text-blue-400 font-bold block text-sm">Real Interview Prep</span>
@@ -205,20 +194,17 @@
                     </div>
                     <span class="text-blue-400 font-mono text-sm group-hover:text-blue-300 bg-blue-900/20 px-3 py-1 rounded-md">45 Min</span>
                 </button>
-
                 <div class="flex gap-2 mt-2 items-center">
                     <input type="text" id="custom-time" placeholder="M or M:SS" class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono">
                     <button onclick="startCustomSession()" class="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm rounded-xl transition">Start</button>
                 </div>
             </div>
-            
             <div class="p-4 bg-zinc-900/30 flex justify-end">
                 <button onclick="closeModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
             </div>
         </div>
     </div>
 
-    <!-- Final Report Modal -->
     <div id="report-modal" class="hidden fixed inset-0 bg-black/80 modal-blur z-[60] flex items-center justify-center transition-opacity">
         <div class="glass-card rounded-2xl w-[500px] overflow-hidden transform transition-all relative">
             <div class="absolute -top-20 -right-20 w-40 h-40 bg-blue-600 rounded-full blur-[80px] opacity-20"></div>
@@ -256,7 +242,6 @@
                     </div>
                 </div>
 
-                <!-- NEW: This button now switches to the Dashboard instead of reloading the page -->
                 <button onclick="switchTab('dashboard'); closeModal('report-modal');" class="w-full mt-6 px-4 py-3 rounded-xl bg-white text-black font-bold uppercase tracking-wider text-xs hover:bg-zinc-200 transition">
                     Return to Dashboard
                 </button>
@@ -264,7 +249,6 @@
         </div>
     </div>
 
-    <!-- Detailed Violation Logs Modal -->
     <div id="logs-modal" class="hidden fixed inset-0 bg-black/80 modal-blur z-[70] flex items-center justify-center transition-opacity">
         <div class="glass-card rounded-2xl w-[450px] shadow-2xl overflow-hidden transform transition-all relative flex flex-col max-h-[80vh]">
             <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-[#0f0f0f]">
@@ -276,9 +260,7 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            
             <div class="p-4 overflow-y-auto flex-1 bg-[#0a0a0a]" id="logs-container">
-                <!-- Logs injected here -->
             </div>
         </div>
     </div>
@@ -297,7 +279,6 @@
             });
         });
 
-        // Smart Tab Switching Detection
         document.addEventListener("visibilitychange", () => {
             if (testing) {
                 if (document.hidden) {
@@ -307,7 +288,6 @@
                         body: JSON.stringify({ reason: 'TAB SWITCHED' })
                     });
                 } else {
-                    // Delay clearing the alert for 3 seconds so the user can read it
                     setTimeout(() => {
                         if (!document.hidden) fetch('/clear_violation', { method: 'POST' });
                     }, 3000);
@@ -351,7 +331,6 @@
             return (parseInt(input) || 0) * 60;
         }
 
-        // NEW: View Switcher Logic
         function switchTab(tab) {
             document.getElementById('view-editor').classList.toggle('hidden', tab !== 'editor');
             document.getElementById('view-dashboard').classList.toggle('hidden', tab !== 'dashboard');
@@ -365,11 +344,10 @@
             } else {
                 tabDash.className = "text-xs font-bold uppercase tracking-widest text-blue-500 border-b-2 border-blue-500 pb-1";
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 pb-1 border-b-2 border-transparent transition";
-                loadProfile(); // Fetch fresh data from DB when opening dashboard
+                loadProfile(); 
             }
         }
 
-        // NEW: Load data into Dashboard
         async function loadProfile() {
             const res = await fetch('/get_profile_data');
             const data = await res.json();
@@ -456,8 +434,7 @@
             timeLeft = seconds;
             totalDuration = seconds;
             
-            // Switch back to editor tab automatically if they start from profile tab
-            switchTab('editor');
+            switchTab('editor'); // Make sure we switch back to the editor view
             
             const audioEnabled = document.getElementById('audio-toggle').checked;
             if(audioEnabled) {
@@ -472,8 +449,9 @@
                 body: JSON.stringify({ audio: audioEnabled })
             });
             
-            btn.innerText = "Stop Session"; 
-            btn.className = "px-5 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-xs font-bold transition shadow-lg shadow-red-900/20";
+            // RED STOP BUTTON FOR ACTIVE SESSION
+            btn.innerText = "STOP SESSION"; 
+            btn.className = "px-6 py-2 rounded-md bg-red-900/30 border border-red-800/50 hover:bg-red-900/50 text-red-500 text-[11px] font-bold uppercase tracking-widest transition shadow-lg";
             
             document.getElementById('feed').src = "/video_feed?t=" + Date.now();
             document.getElementById('feed').classList.remove('hidden');
@@ -488,6 +466,9 @@
         }
 
         async function endSessionAndShowReport() {
+            // BUG FIX: Set testing to false here so clicking Start Session again opens the setup modal!
+            testing = false;
+            
             clearInterval(statusTimer);
             clearInterval(testTimer);
             document.getElementById('feed').src = ""; 
@@ -500,10 +481,10 @@
             document.getElementById('mic-badge').classList.add('hidden');
             document.getElementById('mic-badge').classList.remove('flex');
             
-            // Reset "Stop" button to "Start"
+            // RESET BUTTON TO DARK STYLE
             const btn = document.getElementById('toggleBtn');
-            btn.innerText = "Start Test";
-            btn.className = "px-5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-xs font-bold transition shadow-lg shadow-blue-900/20";
+            btn.innerText = "START SESSION";
+            btn.className = "px-6 py-2 rounded-md bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white text-[11px] font-bold uppercase tracking-widest transition shadow-lg";
             
             document.getElementById('report-level').innerText = data.current_difficulty;
             document.getElementById('report-syntax').innerText = data.syntax_errors;
@@ -540,7 +521,7 @@
                 sessionLogs.forEach(log => {
                     let icon = `<svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>`;
                     if(log.type.includes("AUDIO")) icon = `<svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>`;
-                    if(log.type.includes("TAB")) icon = `<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>`;
+                    if(log.type.includes("TAB")) icon = `<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012-2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>`;
                     
                     container.innerHTML += `
                         <div class="flex items-center gap-4 bg-zinc-900 border border-zinc-800 p-3 rounded-lg mb-2">

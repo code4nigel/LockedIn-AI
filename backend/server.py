@@ -1,6 +1,8 @@
 from flask import Flask, render_template, Response, request, jsonify, session
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
+import google.generativeai as genai
+from dotenv import load_dotenv
 import cv2
 import sys
 import os
@@ -15,6 +17,14 @@ from datetime import datetime
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
+
+load_dotenv()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+    llm_model = genai.GenerativeModel('gemini-2.0-flash')
+else:
+    llm_model = None
 
 from backend.ai_proctor.tracker import FaceTracker
 from backend.ai_proctor.audio_monitor import AudioMonitor
@@ -161,7 +171,8 @@ def start_test():
                 "is_active": True, "audio_enabled": settings.get('audio', False),
                 "violations": 0, "syntax_errors": 0, "logic_errors": 0,
                 "current_difficulty": 1, "status": "SECURE", "violation_logs": [],
-                "level_times": [], "last_level_time": time.time()
+                "level_times": [], "last_level_time": time.time(),
+                "categories_completed": []
             })
             if proctor_state["audio_enabled"]: audio_tracker.start()
     return jsonify({"status": "started"})
@@ -175,9 +186,10 @@ def stop_test():
         # Save specific logs and tracked times for the graphs
         v_logs = json.dumps(proctor_state.get("violation_logs", []))
         l_times = json.dumps(proctor_state.get("level_times", []))
+        cats = json.dumps(proctor_state.get("categories_completed", []))
         
         save_session(user_id, proctor_state["current_difficulty"], proctor_state["violations"], 
-                     proctor_state["syntax_errors"], proctor_state["logic_errors"], v_logs, l_times)
+                     proctor_state["syntax_errors"], proctor_state["logic_errors"], v_logs, l_times, cats)
                      
     proctor_state["is_active"] = False
     if audio_tracker: audio_tracker.stop()
@@ -191,10 +203,12 @@ def get_status(): return jsonify(proctor_state)
 @app.route('/log_violation', methods=['POST'])
 def log_violation():
     global proctor_state
+    data = request.json
+    reason = data.get("reason", "TAB SWITCHED")
     if proctor_state["is_active"]:
         proctor_state["violations"] += 1
-        log_incident("TAB SWITCHED")
-        proctor_state["status"] = "VIOLATION (TAB SWITCHED)"
+        log_incident(reason)
+        proctor_state["status"] = f"VIOLATION ({reason})"
     return jsonify({"status": "logged"})
 
 @app.route('/clear_violation', methods=['POST'])
@@ -225,9 +239,48 @@ def run_code():
                     if "SyntaxError" in res.stderr or "IndentationError" in res.stderr: proctor_state["syntax_errors"] += 1
                     else: proctor_state["logic_errors"] += 1
                 else: output_text = res.stdout
+            
+            elif lang == "java":
+                full_code = code + "\n" + question["java_test"]
+                f_path = os.path.join(temp_dir, "Main.java")
+                with open(f_path, "w", encoding="utf-8") as f: f.write(full_code)
+                # Compile
+                compile_res = subprocess.run(["javac", f_path], text=True, capture_output=True, timeout=10)
+                if compile_res.returncode != 0:
+                    is_error = True
+                    output_text = compile_res.stderr
+                    proctor_state["syntax_errors"] += 1
+                else:
+                    # Run
+                    run_res = subprocess.run(["java", "-cp", temp_dir, "Main"], text=True, capture_output=True, timeout=5)
+                    if run_res.returncode != 0:
+                        is_error = True
+                        output_text = run_res.stderr
+                        proctor_state["logic_errors"] += 1
+                    else:
+                        output_text = run_res.stdout
+
+            elif lang == "javascript":
+                full_code = code + "\n" + question.get("js_test", "")
+                f_path = os.path.join(temp_dir, "solution.js")
+                with open(f_path, "w", encoding="utf-8") as f: f.write(full_code)
+                res = subprocess.run(["node", f_path], text=True, capture_output=True, timeout=5)
+                if res.returncode != 0:
+                    is_error = True
+                    output_text = res.stderr
+                    # Basic syntax vs logic error detection for JS
+                    if "SyntaxError" in res.stderr: proctor_state["syntax_errors"] += 1
+                    else: proctor_state["logic_errors"] += 1
+                else: output_text = res.stdout
         
         success = not is_error and "ALL TESTS PASSED" in output_text
         if success: 
+            # Track category
+            cat = question.get("category", "General")
+            if "categories_completed" not in proctor_state: proctor_state["categories_completed"] = []
+            if cat not in proctor_state["categories_completed"]:
+                proctor_state["categories_completed"].append(cat)
+
             # Track real time taken for this question for the Graph
             current_time = time.time()
             time_taken = current_time - proctor_state.get("last_level_time", current_time)
@@ -239,6 +292,55 @@ def run_code():
             
         return jsonify({"stdout": output_text, "status": {"id": 3 if success else 11, "description": "Accepted" if success else "Test Failed"}})
     except Exception as e: return jsonify({"stdout": f"Server Error: {str(e)}", "status": {"id": 6}})
+
+@app.route('/ai_interview', methods=['POST'])
+def ai_interview():
+    if not llm_model:
+        return jsonify({"error": "Gemini API key not configured"}), 500
+    
+    data = request.json
+    code = data.get('code')
+    question_id = data.get('question_id')
+    language = data.get('language')
+    history = data.get('history', [])
+    
+    question = get_question_by_id(question_id)
+    if not question:
+        return jsonify({"error": "Question not found"}), 404
+    
+    # Simple prompt for initial feedback
+    if not history:
+        prompt = f"""
+        You are an expert technical interviewer. The candidate has just solved the following coding challenge:
+        Title: {question['title']}
+        Description: {question['description']}
+        
+        Candidate's Solution ({language}):
+        ```
+        {code}
+        ```
+        
+        Instructions:
+        1. Briefly analyze their code's performance (time/space complexity).
+        2. Provide one constructive tip.
+        3. Ask exactly ONE deep follow-up question about their implementation or a theoretical alternative.
+        4. Keep your response concise, professional, and within 3-4 sentences.
+        """
+    else:
+        prompt = history[-1]['content']
+    
+    try:
+        # Convert history format for Gemini if needed
+        gemini_history = []
+        for msg in history[:-1]:
+            role = "user" if msg['role'] == "user" else "model"
+            gemini_history.append({"role": role, "parts": [msg['content']]})
+            
+        chat = llm_model.start_chat(history=gemini_history)
+        response = chat.send_message(prompt)
+        return jsonify({"response": response.text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     threading.Thread(target=lambda: (time.sleep(2), webbrowser.open("http://127.0.0.1:5000")), daemon=True).start()

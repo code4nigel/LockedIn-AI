@@ -40,6 +40,11 @@ def init_db():
     except sqlite3.OperationalError:
         pass # Column already exists
         
+    try:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN categories_completed TEXT DEFAULT '[]'")
+    except sqlite3.OperationalError:
+        pass # Column already exists
+        
     conn.commit()
     conn.close()
 
@@ -64,18 +69,18 @@ def get_user_by_username(username):
     conn.close()
     return dict(user) if user else None
 
-def save_session(user_id, max_level, violations, syntax, logic, violation_logs="[]", level_times="[]"):
+def save_session(user_id, max_level, violations, syntax, logic, violation_logs="[]", level_times="[]", categories="[]"):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
+
     points = max(0, (max_level * 100) - (violations * 10))
-    
+
     cursor.execute('''INSERT INTO sessions 
-                      (user_id, max_level, violations, syntax_errors, logic_errors, violation_logs, level_times) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?)''', (user_id, max_level, violations, syntax, logic, violation_logs, level_times))
-    
+                      (user_id, max_level, violations, syntax_errors, logic_errors, violation_logs, level_times, categories_completed) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (user_id, max_level, violations, syntax, logic, violation_logs, level_times, categories))
+
     cursor.execute("UPDATE users SET total_points = total_points + ? WHERE id = ?", (points, user_id))
-    
+
     cursor.execute("SELECT total_points FROM users WHERE id = ?", (user_id,))
     total = cursor.fetchone()[0]
     new_rank = "Code Initiate"
@@ -83,7 +88,7 @@ def save_session(user_id, max_level, violations, syntax, logic, violation_logs="
     elif total > 5000: new_rank = "Logic Master"
     elif total > 2000: new_rank = "Senior Scripter"
     elif total > 500: new_rank = "Syntax Soldier"
-    
+
     cursor.execute("UPDATE users SET rank = ? WHERE id = ?", (new_rank, user_id))
     conn.commit()
     conn.close()
@@ -92,18 +97,28 @@ def get_profile(user_id):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    
+
     cursor.execute("SELECT id, username, total_points, rank FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
     if not user:
         conn.close()
         return None
-        
+
     cursor.execute("SELECT * FROM sessions WHERE user_id = ? ORDER BY timestamp DESC LIMIT 20", (user_id,))
     history = [dict(row) for row in cursor.fetchall()]
-    
+
+    # Calculate Category Stats for Radar Chart
+    import json
+    category_stats = {}
+    for session in history:
+        try:
+            cats = json.loads(session.get('categories_completed', '[]'))
+            for c in cats:
+                category_stats[c] = category_stats.get(c, 0) + 1
+        except: pass
+
     cursor.execute("SELECT COUNT(*) FROM sessions WHERE user_id = ?", (user_id,))
     total_sessions = cursor.fetchone()[0]
-    
+
     conn.close()
-    return {"user": dict(user), "history": history, "total_sessions": total_sessions}
+    return {"user": dict(user), "history": history, "total_sessions": total_sessions, "category_stats": category_stats}

@@ -144,6 +144,7 @@
                         <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-900 border border-zinc-800 text-[10px] rounded px-2 py-1 outline-none text-zinc-400 cursor-pointer">
                             <option value="python">Python 3</option>
                             <option value="java">Java 15</option>
+                            <option value="javascript">JavaScript (Node)</option>
                         </select>
                     </div>
                 </div>
@@ -305,6 +306,38 @@
         </div>
     </div>
 
+    <!-- AI INTERVIEW MODAL -->
+    <div id="ai-interview-modal" class="hidden fixed inset-0 bg-black/90 modal-blur z-[400] flex items-center justify-center transition-opacity p-6">
+        <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-[#0a0a0a]">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center border border-blue-500/30">
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-white text-lg font-black uppercase tracking-tighter text-blue-500">AI Technical Interview</h3>
+                        <p class="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Powered by Gemini 2.0</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('ai-interview-modal')" class="text-zinc-500 hover:text-white transition p-2 bg-zinc-900 rounded-full border border-zinc-800 hover:bg-zinc-800">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div id="ai-chat-container" class="p-6 overflow-y-auto flex-1 flex flex-col gap-4 bg-[#0a0a0a] font-mono text-sm leading-relaxed">
+                <div class="text-zinc-500 text-center py-10 animate-pulse text-[10px] uppercase tracking-widest">Interviewer is analyzing your solution...</div>
+            </div>
+
+            <div class="p-4 border-t border-zinc-800 bg-[#0f0f0f] flex gap-3">
+                <input type="text" id="ai-chat-input" placeholder="Type your response..." class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono" onkeypress="if(event.key==='Enter') sendAIMessage()">
+                <button onclick="sendAIMessage()" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl transition shadow-lg flex items-center gap-2">
+                    Send
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ADVANCED SESSION DETAILS MODAL (With Chart.js Graph) -->
     <div id="session-detail-modal" class="hidden fixed inset-0 bg-black/90 modal-blur z-[80] flex items-center justify-center transition-opacity p-6">
         <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -371,11 +404,43 @@
         let isLoginMode = true;
         let chartInstance = null; 
         window.userHistoryData = []; 
+        let lastKeystrokeTime = 0;
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('monaco-anchor'), {
                 value: "# Start a session to load code.",
                 language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true, fontSize: 13, minimap: { enabled: false }
+            });
+
+            // --- Keystroke Dynamics & Copy-Paste Detection ---
+            editor.onKeyDown((e) => {
+                if (!testing) return;
+                const now = Date.now();
+                if (lastKeystrokeTime > 0) {
+                    const diff = now - lastKeystrokeTime;
+                    // Unnatural speed: multiple keys in < 10ms usually means automation or rapid bursts
+                    if (diff < 10) {
+                        fetch('/log_violation', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ reason: 'UNNATURAL TYPING' })
+                        });
+                    }
+                }
+                lastKeystrokeTime = now;
+            });
+
+            editor.onDidPaste((e) => {
+                if (!testing) return;
+                // Detect large pastes which often indicate external copying
+                const pastedText = editor.getModel().getValueInRange(e.range);
+                if (pastedText.length > 50) {
+                    fetch('/log_violation', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ reason: 'CODE PASTED' })
+                    });
+                }
             });
             
             checkAuthentication();
@@ -471,13 +536,17 @@
             if(!currentQuestion) return;
             const lang = document.getElementById('lang-select').value;
             monaco.editor.setModelLanguage(editor.getModel(), lang);
-            editor.setValue(lang === 'python' ? currentQuestion.python_boilerplate : currentQuestion.java_boilerplate);
+            if (lang === 'python') editor.setValue(currentQuestion.python_boilerplate);
+            else if (lang === 'java') editor.setValue(currentQuestion.java_boilerplate);
+            else if (lang === 'javascript') editor.setValue(currentQuestion.javascript_boilerplate);
         }
 
         function resetCode() {
             if(!currentQuestion) return;
             const lang = document.getElementById('lang-select').value;
-            editor.setValue(lang === 'python' ? currentQuestion.python_boilerplate : currentQuestion.java_boilerplate);
+            if (lang === 'python') editor.setValue(currentQuestion.python_boilerplate);
+            else if (lang === 'java') editor.setValue(currentQuestion.java_boilerplate);
+            else if (lang === 'javascript') editor.setValue(currentQuestion.javascript_boilerplate);
         }
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -526,6 +595,60 @@
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
                 loadProfile(); 
             }
+        }
+
+        let skillChartInstance = null;
+        function renderSkillChart(stats) {
+            const canvas = document.getElementById('skillRadarChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            if (skillChartInstance) skillChartInstance.destroy();
+
+            const categories = Object.keys(stats).length > 2 ? Object.keys(stats) : ["Arrays", "Strings", "DP", "Graphs", "Trees", "Sorting"];
+            const values = categories.map(cat => stats[cat] || 0);
+            
+            // AI Recommendation logic based on stats
+            if (Object.keys(stats).length > 0) {
+                const sorted = Object.entries(stats).sort((a,b) => a[1] - b[1]);
+                const weakest = sorted[0][0];
+                document.getElementById('ai-reco-text').innerText = `You've shown great progress, but your ${weakest} skills could use more practice. Try focusing on ${weakest} challenges in your next session to balance your profile.`;
+            }
+
+            skillChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: categories,
+                    datasets: [{
+                        label: 'Mastery Level',
+                        data: values,
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: '#3b82f6',
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#3b82f6',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(63, 63, 70, 0.5)' },
+                            grid: { color: 'rgba(63, 63, 70, 0.5)' },
+                            pointLabels: { color: '#a1a1aa', font: { size: 10, weight: 'bold' } },
+                            ticks: { display: false, stepSize: 1 },
+                            suggestedMin: 0,
+                            suggestedMax: 5
+                        }
+                    }
+                }
+            });
         }
 
         async function loadProfile() {
@@ -991,6 +1114,77 @@
             }
         }
 
+        let aiChatHistory = [];
+
+        function startAIInterview() {
+            aiChatHistory = [];
+            document.getElementById('ai-chat-container').innerHTML = '<div class="text-zinc-500 text-center py-10 animate-pulse text-[10px] uppercase tracking-widest">Interviewer is analyzing your solution...</div>';
+            openModal('ai-interview-modal');
+            
+            // Initial call to get feedback
+            sendAIMessage(true);
+        }
+
+        async function sendAIMessage(isInitial = false) {
+            const input = document.getElementById('ai-chat-input');
+            const container = document.getElementById('ai-chat-container');
+            const message = input.value.trim();
+            
+            if (!isInitial && !message) return;
+            
+            if (isInitial) {
+                // Keep the loading state
+            } else {
+                appendAIMessage('user', message);
+                input.value = '';
+                aiChatHistory.push({role: 'user', content: message});
+            }
+
+            try {
+                const res = await fetch('/ai_interview', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        code: editor.getValue(),
+                        language: document.getElementById('lang-select').value,
+                        question_id: currentQuestion.id,
+                        history: aiChatHistory
+                    })
+                });
+                const data = await res.json();
+                
+                if (isInitial) container.innerHTML = ''; // Clear loading
+
+                if (data.response) {
+                    appendAIMessage('model', data.response);
+                    aiChatHistory.push({role: 'model', content: data.response});
+                } else {
+                    appendAIMessage('model', "Error: " + (data.error || "Failed to get response"));
+                }
+            } catch(e) {
+                appendAIMessage('model', "Connection error. Ensure backend is running with Gemini API key.");
+            }
+        }
+
+        function appendAIMessage(role, text) {
+            const container = document.getElementById('ai-chat-container');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = role === 'user' ? 'self-end bg-blue-600/20 border border-blue-500/30 p-3 rounded-xl max-w-[80%] text-zinc-200' : 'self-start bg-zinc-900 border border-zinc-800 p-3 rounded-xl max-w-[80%] text-zinc-300';
+            
+            const roleLabel = document.createElement('span');
+            roleLabel.className = 'text-[9px] font-bold uppercase tracking-widest block mb-1 ' + (role === 'user' ? 'text-blue-400' : 'text-zinc-500');
+            roleLabel.innerText = role === 'user' ? 'You' : 'Interviewer';
+            
+            const content = document.createElement('div');
+            content.className = 'whitespace-pre-wrap';
+            content.innerText = text;
+            
+            msgDiv.appendChild(roleLabel);
+            msgDiv.appendChild(content);
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
         async function runCode() {
             const rb = document.getElementById('runBtn'), co = document.getElementById('console-out'), st = document.getElementById('exec-status');
             rb.disabled = true; rb.innerText = "..."; st.innerText = "Testing...";
@@ -1003,9 +1197,20 @@
                 co.innerText = data.stdout;
                 st.innerText = data.status.description;
                 if(data.status.id === 3) { 
-                    co.innerHTML += "\n\n<span class='text-green-500 font-bold'>[PASSED ALL TESTS] Moving to next level...</span>"; 
+                    co.innerHTML += "\n\n<span class='text-green-500 font-bold'>[PASSED ALL TESTS] Moving to next level...</span>";
+                    co.innerHTML += `
+                        <div class="mt-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl flex items-center justify-between">
+                            <div>
+                                <h4 class="text-blue-400 font-bold text-xs uppercase tracking-widest">Mastered!</h4>
+                                <p class="text-zinc-500 text-[10px]">Your logic is sound. Ready for a follow-up?</p>
+                            </div>
+                            <button onclick="startAIInterview()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-widest rounded shadow-lg transition">
+                                Practice Interview
+                            </button>
+                        </div>
+                    `;
                     st.classList.replace('text-zinc-600', 'text-green-500');
-                    setTimeout(loadQuestion, 2000); 
+                    setTimeout(loadQuestion, 5000); 
                 } else { 
                     co.classList.add('text-red-400'); 
                     st.classList.replace('text-zinc-600', 'text-red-500');

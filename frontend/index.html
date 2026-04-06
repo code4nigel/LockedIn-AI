@@ -760,39 +760,46 @@
         }
 
         function renderGraph(maxLevel, levelTimesStr) {
+            console.log("Rendering graph for level:", maxLevel, "Data:", levelTimesStr);
             const canvas = document.getElementById('sessionGraph');
-            if(!canvas) return;
+            if(!canvas) {
+                console.error("Canvas 'sessionGraph' not found");
+                return;
+            }
             const ctx = canvas.getContext('2d');
             
-            if (chartInstance) chartInstance.destroy();
+            if (typeof Chart === 'undefined') {
+                console.error("Chart.js is not loaded!");
+                return;
+            }
 
-            const points = Math.max(3, maxLevel);
+            if (performanceChartInstance) performanceChartInstance.destroy();
+
+            const points = Math.max(3, parseInt(maxLevel) || 1);
             const labels = Array.from({length: points}, (_, i) => `Lvl ${i+1}`);
             
             let userData = [];
             try {
-                if (levelTimesStr) {
+                if (levelTimesStr && levelTimesStr !== "[]") {
                     const times = JSON.parse(levelTimesStr);
-                    let cumulative = 0;
-                    for (let t of times) {
-                        cumulative += t;
-                        userData.push(parseFloat(cumulative.toFixed(1)));
-                    }
+                    // Use actual times per level, not cumulative
+                    userData = times.map(t => parseFloat(parseFloat(t).toFixed(1)));
                 }
-            } catch (e) { console.error("Level times parse error"); }
+            } catch (e) { console.error("Level times parse error:", e); }
 
-            // If user didn't complete a level, mock it or pad it to match the graph size
+            // If user didn't complete a level or data is missing, pad or mock
             if (userData.length === 0) {
-                userData = labels.map((_, i) => parseFloat(((i + 1) * 2.5 + (Math.random() * 2)).toFixed(1)));
+                console.log("No user data, using mock data for visualization");
+                userData = labels.map((_, i) => parseFloat((2.0 + Math.random() * 3).toFixed(1)));
             } else {
                 while (userData.length < points) {
-                    userData.push(userData[userData.length - 1]);
+                    userData.push(0); // Pad with zeros for levels not reached
                 }
             }
 
-            const globalData = labels.map((_, i) => parseFloat(((i + 1) * 1.5 + (Math.random() * 1.5)).toFixed(1)));
+            const globalData = labels.map((_, i) => parseFloat((1.5 + Math.random() * 1.5).toFixed(1)));
 
-            chartInstance = new Chart(ctx, {
+            performanceChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -810,7 +817,7 @@
                             pointHoverRadius: 6
                         },
                         {
-                            label: 'Global Best',
+                            label: 'Avg. Dev Time',
                             data: globalData,
                             borderColor: '#a1a1aa',
                             borderWidth: 2,
@@ -824,12 +831,14 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 1000 },
                     plugins: {
                         legend: { labels: { color: '#d4d4d8', font: { family: 'Inter', size: 10 } } },
                         tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#10b981', padding: 10, cornerRadius: 8 }
                     },
                     scales: {
                         y: { 
+                            beginAtZero: true,
                             grid: { color: '#27272a', drawBorder: false }, 
                             ticks: { color: '#a1a1aa', font: { family: 'Inter', size: 10 } },
                             title: { display: true, text: 'Time Taken (mins)', color: '#71717a', font: { size: 10 } }
@@ -841,6 +850,7 @@
                     }
                 }
             });
+            console.log("Performance Chart created successfully");
         }
 
         function runTimerLogic() {
@@ -1217,6 +1227,10 @@
                 }
             } catch(e) { co.innerText = "Error contacting server."; }
             finally { rb.disabled = false; rb.innerText = "Submit"; }
+        }
+    </script>
+</body>
+</html>rb.innerText = "Submit"; }
         }
     </script>
 </body>

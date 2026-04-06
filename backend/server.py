@@ -369,13 +369,19 @@ def verbal_chat():
     history = data.get('history', [])
     prompt = data.get('prompt')
     
+    system_instruction = """
+    You are an expert Technical and Behavioral Interviewer preparing the candidate for top-tier software engineering roles.
+    Role and Responsibilities:
+    1. Conduct a realistic, challenging, and dynamic behavioral and system design interview.
+    2. DO NOT ask the same basic questions every time. Start with a unique behavioral or introductory question (e.g., a specific conflict, a past failure, a unique technical challenge, why they want this role).
+    3. After the candidate answers a question, briefly provide 1-2 sentences of constructive feedback directly to the candidate, pointing out what was good and what was lacking.
+    4. Then, immediately ask the next challenging question (e.g., jump into a high-level system design scenario or another deep behavioral aspect).
+    5. Maintain a professional, strict, but fair tone. Do not be overly polite or chatty.
+    6. Keep your total response under 4-5 sentences so it can be easily spoken aloud by TTS.
+    """
+    
     if not history:
-        prompt = f"""
-        Act as a strict but fair Engineering Manager conducting a behavioral and system design interview. 
-        Start by asking a classic behavioral question. Keep your responses very brief (1-3 sentences maximum). 
-        Wait for the candidate's answer before proceeding. 
-        Candidate just said: {prompt}
-        """
+        prompt = system_instruction + f"\n\nThe candidate is ready. Introduce yourself briefly and ask your first challenging question. The candidate said: {prompt}"
     
     try:
         gemini_history = []
@@ -389,6 +395,56 @@ def verbal_chat():
         proctor_state["behavioral_feedback"] = "Completed verbal interview."
         return jsonify({"response": response.text})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/verbal_report', methods=['POST'])
+def verbal_report():
+    if not llm_model:
+        return jsonify({"error": "Gemini API key not configured"}), 500
+        
+    data = request.json
+    history = data.get('history', [])
+    
+    if not history:
+        return jsonify({"score": 0, "summary": "No questions answered.", "questions": []})
+        
+    prompt = """
+    The interview has concluded. Review the transcript of the interview (provided in the history) and generate a JSON report with the following structure:
+    {
+        "score": <0-100 overall score>,
+        "summary": "<A short paragraph summarizing what the candidate did well and what they must focus on before their real interview.>",
+        "questions": [
+            {
+                "q": "<The question you asked>",
+                "a": "<The candidate's answer>",
+                "feedback": "<Specific feedback on their answer>",
+                "negative_marks": <Integer representing points lost for poor answers (0 if good, 1-10 if bad)>
+            }
+        ]
+    }
+    ONLY return the raw JSON object, no markdown blocks.
+    """
+    
+    try:
+        gemini_history = []
+        for msg in history:
+            role = "user" if msg['role'] == "user" else "model"
+            gemini_history.append({"role": role, "parts": [msg['content']]})
+            
+        chat = llm_model.start_chat(history=gemini_history)
+        response = chat.send_message(prompt)
+        
+        # Clean up possible markdown block from LLM
+        response_text = response.text.replace('```json', '').replace('```', '').strip()
+        report = json.loads(response_text)
+        
+        # Save to DB
+        proctor_state["behavioral_feedback"] = report.get('summary', 'Interview completed.')
+        proctor_state["aptitude_score"] = report.get('score', 0) // 10  # Scale 100 to 10
+        
+        return jsonify(report)
+    except Exception as e:
+        print("Error generating verbal report:", str(e))
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

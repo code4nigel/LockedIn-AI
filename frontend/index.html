@@ -186,7 +186,10 @@
     </main>
 
     <main id="view-verbal" class="hidden pane-container flex-col overflow-y-auto bg-[#0a0a0a] p-8 items-center">
-        <div class="max-w-2xl w-full flex flex-col items-center gap-8 mt-10">
+        <div class="w-full max-w-2xl flex justify-end">
+            <div class="px-4 py-2 bg-orange-900/20 border border-orange-500/30 rounded-lg text-orange-400 font-mono text-lg font-bold" id="verbal-timer">45:00</div>
+        </div>
+        <div class="max-w-2xl w-full flex flex-col items-center gap-8 mt-4">
             <div class="relative">
                 <div class="w-32 h-32 bg-blue-600/10 rounded-full flex items-center justify-center border-2 border-blue-500/20 relative z-10">
                     <svg id="verbal-mic-icon" class="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
@@ -212,7 +215,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                     Start Speaking
                 </button>
-                <button onclick="endSessionAndShowReport()" class="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold uppercase tracking-widest rounded-xl transition">End Interview</button>
+                <button onclick="endVerbalSession()" class="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold uppercase tracking-widest rounded-xl transition">End Interview</button>
             </div>
         </div>
     </main>
@@ -301,7 +304,7 @@
                     </div>
                 </button>
 
-                <button onclick="startVerbalMode()" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition flex justify-between items-center group">
+                <button onclick="closeModal('time-modal'); openModal('verbal-time-modal')" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition flex justify-between items-center group">
                     <div>
                         <span class="text-white font-bold block text-sm">Behavioral Mock</span>
                         <span class="text-zinc-500 text-[10px]">AI Voice-to-Voice Interaction</span>
@@ -362,6 +365,40 @@
         </div>
     </div>
 
+    <!-- Verbal Time Setup Modal -->
+    <div id="verbal-time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
+        <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
+            <div class="p-6 border-b border-zinc-800">
+                <h3 class="text-white text-lg font-bold uppercase tracking-tight">Behavioral Mock</h3>
+                <p class="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mt-1">Select Session Duration</p>
+            </div>
+            <div class="p-6 flex flex-col gap-3">
+                <button onclick="closeModal('verbal-time-modal'); startVerbalMode(600)" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition flex justify-between items-center group">
+                    <div>
+                        <span class="text-zinc-200 font-bold block text-sm">Quick Chat</span>
+                        <span class="text-zinc-500 text-[10px]">Basic intro & one scenario</span>
+                    </div>
+                    <span class="text-orange-400 font-mono text-sm group-hover:text-orange-300 bg-orange-900/20 px-3 py-1 rounded-md">10 Min</span>
+                </button>
+                <button onclick="closeModal('verbal-time-modal'); startVerbalMode(2700)" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition flex justify-between items-center group ring-1 ring-orange-500/30">
+                    <div>
+                        <span class="text-orange-400 font-bold block text-sm">Full Behavioral Loop</span>
+                        <span class="text-zinc-500 text-[10px]">Deep dive & system design</span>
+                    </div>
+                    <span class="text-orange-400 font-mono text-sm group-hover:text-orange-300 bg-orange-900/20 px-3 py-1 rounded-md">45 Min</span>
+                </button>
+                <div class="flex gap-2 mt-2 items-center">
+                    <input type="text" id="verbal-custom-time" placeholder="M or M:SS" class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none focus:border-orange-500 transition font-mono">
+                    <button onclick="const t=parseCustomTime(document.getElementById('verbal-custom-time').value); if(t>0){closeModal('verbal-time-modal'); startVerbalMode(t);}else{alert('Invalid time');}" class="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-xl transition shadow-lg">Start</button>
+                </div>
+            </div>
+            <div class="p-4 bg-zinc-900/30 flex justify-end gap-2">
+                <button onclick="closeModal('verbal-time-modal'); openModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Back</button>
+                <button onclick="closeModal('verbal-time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Final Report Modal -->
     <div id="report-modal" class="hidden fixed inset-0 bg-black/80 modal-blur z-[60] flex items-center justify-center transition-opacity">
         <div class="glass-card rounded-2xl w-[500px] overflow-hidden transform transition-all relative">
@@ -401,6 +438,47 @@
                 </div>
 
                 <button onclick="switchTab('dashboard'); closeModal('report-modal');" class="w-full mt-6 px-4 py-3 rounded-xl bg-white text-black font-bold uppercase tracking-wider text-xs hover:bg-zinc-200 transition">
+                    Return to Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verbal Report Modal -->
+    <div id="verbal-report-modal" class="hidden fixed inset-0 bg-black/90 modal-blur z-[60] flex items-center justify-center transition-opacity">
+        <div class="glass-card rounded-2xl w-[700px] max-h-[85vh] overflow-hidden transform transition-all relative flex flex-col">
+            <div class="p-6 border-b border-zinc-800 bg-[#0a0a0a] flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-orange-600/20 rounded-full flex items-center justify-center border border-orange-500/30">
+                        <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-white text-xl font-black uppercase tracking-tighter">Behavioral Assessment</h3>
+                        <p class="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Final Report</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-zinc-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Score</span>
+                    <span class="text-3xl font-black text-orange-500" id="verbal-report-score">0</span><span class="text-zinc-600 text-lg">/100</span>
+                </div>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 bg-[#0f0f0f] flex flex-col gap-6">
+                <div class="bg-orange-900/10 border border-orange-500/20 p-5 rounded-xl">
+                    <h4 class="text-orange-400 text-xs font-bold uppercase tracking-widest mb-2">Interviewer Summary</h4>
+                    <p class="text-zinc-300 text-sm leading-relaxed" id="verbal-report-summary">Loading summary...</p>
+                </div>
+                
+                <div>
+                    <h4 class="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4">Question Breakdown</h4>
+                    <div id="verbal-report-questions" class="flex flex-col gap-4">
+                        <!-- Questions injected here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-[#0a0a0a] border-t border-zinc-800 shrink-0">
+                <button onclick="switchTab('dashboard'); closeModal('verbal-report-modal');" class="w-full px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold uppercase tracking-wider text-xs transition shadow-lg">
                     Return to Dashboard
                 </button>
             </div>
@@ -1125,6 +1203,7 @@
             testing = false;
             clearInterval(statusTimer);
             clearInterval(testTimer);
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
             
             // UI RESET LOGIC TO MATCH INITIAL STATE
             const feed = document.getElementById('feed');
@@ -1459,11 +1538,27 @@
         let recognition = null;
         let verbalHistory = [];
 
-        function startVerbalMode() {
+        function startVerbalMode(seconds) {
             closeModal('time-modal');
+            closeModal('verbal-time-modal');
             switchTab('verbal');
             testing = true;
             verbalHistory = [];
+            
+            timeLeft = seconds || 2700;
+            totalDuration = seconds || 2700;
+            const timerBadge = document.getElementById('verbal-timer');
+            timerBadge.innerText = formatTime(timeLeft);
+            
+            testTimer = setInterval(() => {
+                timeLeft--;
+                timerBadge.innerText = formatTime(timeLeft);
+                if(timeLeft <= 0) {
+                    clearInterval(testTimer);
+                    endVerbalSession();
+                }
+            }, 1000);
+            
             document.getElementById('verbal-ai-text').innerText = "Hello. I'm your interviewer today. Click 'Start Speaking' and tell me about your most challenging project.";
             
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -1550,6 +1645,54 @@
             utterance.rate = 1.0;
             utterance.pitch = 1.0;
             window.speechSynthesis.speak(utterance);
+        }
+
+        async function endVerbalSession() {
+            testing = false;
+            clearInterval(statusTimer);
+            clearInterval(testTimer);
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            
+            document.getElementById('verbal-status').innerText = "Generating Final Report...";
+            
+            try {
+                const res = await fetch('/verbal_report', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ history: verbalHistory })
+                });
+                const data = await res.json();
+                
+                await fetch('/stop_test'); // Cleanup backend proctoring
+
+                document.getElementById('verbal-report-score').innerText = data.score || 0;
+                document.getElementById('verbal-report-summary').innerText = data.summary || "No summary provided.";
+                
+                const qContainer = document.getElementById('verbal-report-questions');
+                qContainer.innerHTML = '';
+                if (data.questions && data.questions.length > 0) {
+                    data.questions.forEach((q, i) => {
+                        const negMark = q.negative_marks ? `<span class="text-xs font-bold text-red-500 bg-red-900/20 px-2 py-1 rounded ml-2">-${q.negative_marks} pts</span>` : `<span class="text-xs font-bold text-green-500 bg-green-900/20 px-2 py-1 rounded ml-2">+0 pts</span>`;
+                        qContainer.innerHTML += `
+                            <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+                                <h5 class="text-white text-sm font-bold mb-2">Q: ${q.q}</h5>
+                                <div class="flex flex-col gap-2 pl-2 border-l-2 border-zinc-700">
+                                    <p class="text-zinc-400 text-xs italic">" ${q.a} "</p>
+                                    <p class="text-orange-400 text-xs font-medium mt-1">Feedback: ${q.feedback} ${negMark}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    qContainer.innerHTML = "<p class='text-zinc-500 text-sm'>No questions were answered.</p>";
+                }
+                
+                openModal('verbal-report-modal');
+            } catch(e) {
+                console.error("Failed to end verbal session", e);
+                alert("Failed to generate report.");
+                switchTab('dashboard');
+            }
         }
 
         async function runCode() {

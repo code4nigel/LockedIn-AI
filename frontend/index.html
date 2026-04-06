@@ -169,6 +169,54 @@
         </div>
     </main>
 
+    <main id="view-aptitude" class="hidden pane-container flex-col overflow-y-auto bg-[#0a0a0a] p-8 items-center">
+        <div class="max-w-3xl w-full flex flex-col gap-6">
+            <div class="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-6 flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-black text-white uppercase tracking-tight">Core CS Aptitude</h2>
+                    <p class="text-zinc-500 text-xs mt-1">Select the correct answer for each technical concept.</p>
+                </div>
+                <div class="px-4 py-2 bg-blue-900/20 border border-blue-500/30 rounded-lg text-blue-400 font-mono text-lg font-bold" id="aptitude-timer">10:00</div>
+            </div>
+            <div id="aptitude-container" class="flex flex-col gap-4">
+                <!-- Questions injected here -->
+            </div>
+            <button onclick="submitAptitude()" id="aptitude-submit" class="w-full mt-4 px-6 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold uppercase tracking-widest rounded-xl shadow-lg transition transform hover:scale-[1.02]">Submit Assessment</button>
+        </div>
+    </main>
+
+    <main id="view-verbal" class="hidden pane-container flex-col overflow-y-auto bg-[#0a0a0a] p-8 items-center">
+        <div class="max-w-2xl w-full flex flex-col items-center gap-8 mt-10">
+            <div class="relative">
+                <div class="w-32 h-32 bg-blue-600/10 rounded-full flex items-center justify-center border-2 border-blue-500/20 relative z-10">
+                    <svg id="verbal-mic-icon" class="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                </div>
+                <div id="verbal-pulse" class="absolute inset-0 bg-blue-500/20 rounded-full animate-ping hidden"></div>
+            </div>
+            
+            <div class="text-center">
+                <h2 class="text-2xl font-black text-white uppercase tracking-tighter">Verbal AI Interview</h2>
+                <p id="verbal-status" class="text-blue-500 text-[10px] font-bold uppercase tracking-widest mt-2">Listening for your response...</p>
+            </div>
+
+            <div class="w-full bg-[#0f0f0f] border border-zinc-800 rounded-2xl p-8 min-h-[150px] flex items-center justify-center text-center italic text-zinc-400 text-lg leading-relaxed shadow-2xl" id="verbal-ai-text">
+                "Hello. I'm your interviewer today. Click 'Start Speaking' and tell me about your most challenging project."
+            </div>
+
+            <div class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-xs font-mono text-zinc-500" id="verbal-transcript">
+                Transcript will appear here...
+            </div>
+
+            <div class="flex gap-4">
+                <button id="verbal-start-btn" onclick="startVerbalListening()" class="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg transition flex items-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    Start Speaking
+                </button>
+                <button onclick="endSessionAndShowReport()" class="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold uppercase tracking-widest rounded-xl transition">End Interview</button>
+            </div>
+        </div>
+    </main>
+
     <main id="view-dashboard" class="hidden pane-container flex-col overflow-y-auto bg-[#0a0a0a] p-8 items-center">
         <div class="max-w-5xl w-full flex flex-col gap-6">
             <div class="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-8 flex items-start justify-between relative overflow-hidden">
@@ -229,41 +277,87 @@
     <div id="time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
         <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
             <div class="p-6 border-b border-zinc-800">
-                <h3 class="text-white text-lg font-bold">Session Setup</h3>
-                <p class="text-zinc-500 text-xs mt-1">Configure your interview settings.</p>
+                <h3 class="text-white text-lg font-bold uppercase tracking-tight">Session Setup</h3>
+                <p class="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mt-1">Select Interview Stage</p>
             </div>
-            <div class="p-6 flex flex-col gap-4">
-                <div class="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between">
+            <div class="p-6 flex flex-col gap-3">
+                <button onclick="closeModal('time-modal'); openModal('coding-time-modal')" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-blue-500/50 rounded-xl transition flex justify-between items-center group">
                     <div>
-                        <span class="text-zinc-200 font-medium block text-sm">Audio Proctoring</span>
-                        <span class="text-zinc-500 text-xs">Detect talking or loud noises.</span>
+                        <span class="text-white font-bold block text-sm">Technical Coding</span>
+                        <span class="text-zinc-500 text-[10px]">Data Structures & Algorithms</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    </div>
+                </button>
+
+                <button onclick="startAptitudeMode()" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500/50 rounded-xl transition flex justify-between items-center group">
+                    <div>
+                        <span class="text-white font-bold block text-sm">Aptitude Assessment</span>
+                        <span class="text-zinc-500 text-[10px]">Core CS & Logical Reasoning</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    </div>
+                </button>
+
+                <button onclick="startVerbalMode()" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition flex justify-between items-center group">
+                    <div>
+                        <span class="text-white font-bold block text-sm">Behavioral Mock</span>
+                        <span class="text-zinc-500 text-[10px]">AI Voice-to-Voice Interaction</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </div>
+                </button>
+
+                <div class="p-4 bg-zinc-900/30 border border-zinc-800 rounded-xl flex items-center justify-between mt-2">
+                    <div>
+                        <span class="text-zinc-400 font-bold block text-[10px] uppercase tracking-wider">Audio Proctoring</span>
+                        <span class="text-zinc-600 text-[9px]">Detect talking or loud noises</span>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="audio-toggle" class="sr-only peer">
+                        <input type="checkbox" id="audio-toggle" class="sr-only peer" checked>
                         <div class="w-10 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
                     </label>
                 </div>
-                <button onclick="startSession(600)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group">
+            </div>
+            <div class="p-4 bg-zinc-900/30 flex justify-end">
+                <button onclick="closeModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coding Time Setup Modal -->
+    <div id="coding-time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
+        <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
+            <div class="p-6 border-b border-zinc-800">
+                <h3 class="text-white text-lg font-bold uppercase tracking-tight">Technical Coding</h3>
+                <p class="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mt-1">Select Session Duration</p>
+            </div>
+            <div class="p-6 flex flex-col gap-3">
+                <button onclick="closeModal('coding-time-modal'); startSession(600)" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-blue-500/50 rounded-xl transition flex justify-between items-center group">
                     <div>
-                        <span class="text-zinc-200 font-medium block text-sm">Quick Session</span>
-                        <span class="text-zinc-500 text-xs">Best for simple warm-ups</span>
+                        <span class="text-zinc-200 font-bold block text-sm">Quick Session</span>
+                        <span class="text-zinc-500 text-[10px]">Best for simple warm-ups</span>
                     </div>
                     <span class="text-blue-400 font-mono text-sm group-hover:text-blue-300 bg-blue-900/20 px-3 py-1 rounded-md">10 Min</span>
                 </button>
-                <button onclick="startSession(2700)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group ring-1 ring-blue-500/30">
+                <button onclick="closeModal('coding-time-modal'); startSession(2700)" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-blue-500/50 rounded-xl transition flex justify-between items-center group ring-1 ring-blue-500/30">
                     <div>
                         <span class="text-blue-400 font-bold block text-sm">Real Interview Prep</span>
-                        <span class="text-zinc-500 text-xs">Standard interview length</span>
+                        <span class="text-zinc-500 text-[10px]">Standard interview length</span>
                     </div>
                     <span class="text-blue-400 font-mono text-sm group-hover:text-blue-300 bg-blue-900/20 px-3 py-1 rounded-md">45 Min</span>
                 </button>
                 <div class="flex gap-2 mt-2 items-center">
                     <input type="text" id="custom-time" placeholder="M or M:SS" class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono">
-                    <button onclick="startCustomSession()" class="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm rounded-xl transition">Start</button>
+                    <button onclick="closeModal('coding-time-modal'); startCustomSession()" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl transition shadow-lg">Start</button>
                 </div>
             </div>
-            <div class="p-4 bg-zinc-900/30 flex justify-end">
-                <button onclick="closeModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+            <div class="p-4 bg-zinc-900/30 flex justify-end gap-2">
+                <button onclick="closeModal('coding-time-modal'); openModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Back</button>
+                <button onclick="closeModal('coding-time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
             </div>
         </div>
     </div>
@@ -608,6 +702,8 @@
         function switchTab(tab) {
             document.getElementById('view-editor').classList.toggle('hidden', tab !== 'editor');
             document.getElementById('view-dashboard').classList.toggle('hidden', tab !== 'dashboard');
+            document.getElementById('view-aptitude').classList.toggle('hidden', tab !== 'aptitude');
+            document.getElementById('view-verbal').classList.toggle('hidden', tab !== 'verbal');
             
             const tabEd = document.getElementById('tab-editor');
             const tabDash = document.getElementById('tab-dashboard');
@@ -615,10 +711,14 @@
             if(tab === 'editor') {
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-blue-500 border-b-2 border-blue-500 px-2 h-full";
                 tabDash.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
-            } else {
+            } else if(tab === 'dashboard') {
                 tabDash.className = "text-xs font-bold uppercase tracking-widest text-blue-500 border-b-2 border-blue-500 px-2 h-full";
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
                 loadProfile(); 
+            } else {
+                // For aptitude/verbal, hide standard tabs
+                tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
+                tabDash.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
             }
         }
 
@@ -714,18 +814,31 @@
                 }
                 
                 window.userHistoryData.forEach((s, index) => {
+                    let sessionType = "Technical Coding";
+                    let iconColor = "text-blue-400 border-blue-800/30 bg-blue-900/10";
+                    let iconSvg = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>`;
+
+                    if (s.behavioral_feedback) {
+                        sessionType = "Behavioral Mock";
+                        iconColor = "text-orange-500 border-orange-800/30 bg-orange-900/10";
+                        iconSvg = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>`;
+                    } else if (s.aptitude_score !== null) {
+                        sessionType = "Aptitude Assessment";
+                        iconColor = "text-purple-500 border-purple-800/30 bg-purple-900/10";
+                        iconSvg = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>`;
+                    }
+                    
                     const volColor = s.violations > 0 ? "text-red-500" : "text-green-500";
                     const expEarned = Math.max(0, (s.max_level * 100) - (s.violations * 10));
                     
                     list.innerHTML += `
                         <div class="bg-[#0f0f0f] border border-zinc-800 p-5 rounded-xl flex justify-between items-center hover:border-zinc-700 transition cursor-default">
                             <div class="flex items-center gap-6">
-                                <div class="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-zinc-900 border border-zinc-800">
-                                    <span class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Lvl</span>
-                                    <span class="text-xl font-black text-white">${s.max_level}</span>
+                                <div class="flex flex-col items-center justify-center w-14 h-14 rounded-lg border ${iconColor}">
+                                    ${iconSvg}
                                 </div>
                                 <div>
-                                    <span class="text-white text-sm font-bold block mb-1">Session Recorded</span>
+                                    <span class="text-white text-sm font-bold block mb-1">${sessionType}</span>
                                     <span class="text-[10px] font-mono text-zinc-500">${s.timestamp}</span>
                                 </div>
                             </div>
@@ -1233,6 +1346,210 @@
             msgDiv.appendChild(content);
             container.appendChild(msgDiv);
             container.scrollTop = container.scrollHeight;
+        }
+
+        // --- APTITUDE LOGIC ---
+        let aptitudeQuestions = [];
+        let aptitudeTimerInterval = null;
+
+        async function startAptitudeMode() {
+            closeModal('time-modal');
+            switchTab('aptitude');
+            testing = true;
+            
+            try {
+                const res = await fetch('/get_aptitude_questions');
+                aptitudeQuestions = await res.json();
+                renderAptitudeQuestions();
+                
+                let timeSecs = 600; // 10 minutes
+                document.getElementById('aptitude-timer').innerText = formatTime(timeSecs);
+                
+                aptitudeTimerInterval = setInterval(() => {
+                    timeSecs--;
+                    document.getElementById('aptitude-timer').innerText = formatTime(timeSecs);
+                    if(timeSecs <= 0) {
+                        clearInterval(aptitudeTimerInterval);
+                        submitAptitude();
+                    }
+                }, 1000);
+
+                // Start AI proctoring in background
+                fetch('/start_test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ audio: true }) });
+                statusTimer = setInterval(checkStatus, 1000);
+            } catch(e) { console.error("Aptitude fetch failed", e); }
+        }
+
+        function renderAptitudeQuestions() {
+            const container = document.getElementById('aptitude-container');
+            container.innerHTML = "";
+            aptitudeQuestions.forEach((q, i) => {
+                container.innerHTML += `
+                    <div class="bg-[#0f0f0f] border border-zinc-800 p-6 rounded-xl">
+                        <span class="text-[9px] font-bold text-blue-500 uppercase tracking-widest block mb-2">${q.category}</span>
+                        <h4 class="text-white text-sm font-bold mb-4">${i+1}. ${q.question}</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            ${['a','b','c','d'].map(opt => `
+                                <label class="flex items-center gap-3 p-3 bg-zinc-900 border border-zinc-800 rounded-lg cursor-pointer hover:border-blue-500/50 transition">
+                                    <input type="radio" name="q${q.id}" value="${q['option_'+opt]}" class="w-4 h-4 accent-blue-500">
+                                    <span class="text-xs text-zinc-300">${q['option_'+opt]}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function submitAptitude() {
+            clearInterval(aptitudeTimerInterval);
+            const answers = {};
+            aptitudeQuestions.forEach(q => {
+                const selected = document.querySelector(`input[name="q${q.id}"]:checked`);
+                if(selected) answers[q.id] = selected.value;
+            });
+
+            try {
+                const res = await fetch('/submit_aptitude', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ answers })
+                });
+                const data = await res.json();
+                
+                const container = document.getElementById('aptitude-container');
+                container.innerHTML = `
+                    <div class="text-center p-8 bg-[#0f0f0f] border border-zinc-800 rounded-xl mb-2">
+                        <h2 class="text-5xl font-black text-white mb-2">${data.score} <span class="text-zinc-600 text-2xl">/ ${data.total}</span></h2>
+                        <p class="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">Assessment Score</p>
+                    </div>
+                    <div class="flex flex-col gap-4">
+                        ${data.results.map((r, i) => `
+                            <div class="bg-zinc-900/50 border ${r.is_correct ? 'border-green-500/30 bg-green-900/10' : 'border-red-500/30 bg-red-900/10'} p-5 rounded-xl relative overflow-hidden">
+                                <div class="absolute top-0 left-0 w-1 h-full ${r.is_correct ? 'bg-green-500' : 'bg-red-500'}"></div>
+                                <h4 class="text-white text-sm font-bold mb-3 pl-2">${i+1}. ${r.question}</h4>
+                                <div class="flex flex-col gap-2 pl-2">
+                                    <div class="flex items-center gap-2 text-xs font-mono">
+                                        <span class="font-bold text-zinc-500 uppercase tracking-widest w-24">Your Answer:</span>
+                                        <span class="${r.is_correct ? 'text-green-400' : 'text-red-400 font-bold line-through'}">${r.user_answer || "Not Answered"}</span>
+                                    </div>
+                                    ${!r.is_correct ? `
+                                    <div class="flex items-center gap-2 text-xs font-mono">
+                                        <span class="font-bold text-zinc-500 uppercase tracking-widest w-24">Correct:</span>
+                                        <span class="text-green-400 font-bold">${r.correct_answer}</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                const subBtn = document.getElementById('aptitude-submit');
+                subBtn.innerText = "Finish & View Full Report";
+                subBtn.onclick = endSessionAndShowReport;
+                subBtn.className = "w-full mt-4 px-6 py-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold uppercase tracking-widest rounded-xl shadow-lg transition";
+                
+                document.getElementById('aptitude-timer').innerText = "DONE";
+                document.getElementById('aptitude-timer').classList.replace('text-blue-400', 'text-green-400');
+            } catch(e) { console.error("Aptitude submit failed", e); }
+        }
+
+        // --- VERBAL INTERVIEW LOGIC ---
+        let recognition = null;
+        let verbalHistory = [];
+
+        function startVerbalMode() {
+            closeModal('time-modal');
+            switchTab('verbal');
+            testing = true;
+            verbalHistory = [];
+            document.getElementById('verbal-ai-text').innerText = "Hello. I'm your interviewer today. Click 'Start Speaking' and tell me about your most challenging project.";
+            
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = () => {
+                    document.getElementById('verbal-status').innerText = "Listening...";
+                    document.getElementById('verbal-pulse').classList.remove('hidden');
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
+                    document.getElementById('verbal-transcript').innerText = transcript;
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech Error", event.error);
+                    stopVerbalUI();
+                };
+
+                recognition.onend = async () => {
+                    const text = document.getElementById('verbal-transcript').innerText;
+                    if(text && text !== "Transcript will appear here..." && text.trim() !== "") {
+                        stopVerbalUI();
+                        sendVerbalResponse(text);
+                    } else {
+                        document.getElementById('verbal-status').innerText = "Didn't catch that. Click 'Start Speaking' to try again.";
+                        document.getElementById('verbal-pulse').classList.add('hidden');
+                    }
+                };
+            } else {
+                alert("Speech Recognition not supported in this browser.");
+            }
+            
+            // Background proctoring
+            fetch('/start_test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ audio: true }) });
+            statusTimer = setInterval(checkStatus, 1000);
+        }
+
+        function startVerbalListening() {
+            if(recognition) recognition.start();
+        }
+
+        function stopVerbalUI() {
+            document.getElementById('verbal-status').innerText = "Processing...";
+            document.getElementById('verbal-pulse').classList.add('hidden');
+        }
+
+        async function sendVerbalResponse(userText) {
+            const aiDisplay = document.getElementById('verbal-ai-text');
+            aiDisplay.innerText = "...";
+            
+            try {
+                const res = await fetch('/verbal_chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ prompt: userText, history: verbalHistory })
+                });
+                const data = await res.json();
+                
+                if (res.ok && data.response) {
+                    aiDisplay.innerText = data.response;
+                    verbalHistory.push({role: 'user', content: userText});
+                    verbalHistory.push({role: 'model', content: data.response});
+                    speakText(data.response);
+                } else {
+                    aiDisplay.innerText = "Error: " + (data.error || "Failed to communicate with AI.");
+                    console.error("Verbal chat error from backend:", data.error);
+                }
+            } catch(e) { 
+                console.error("Verbal chat failed", e); 
+                aiDisplay.innerText = "Network Error. Is the backend running?";
+            }
+            
+            document.getElementById('verbal-status').innerText = "Click 'Start Speaking' to reply...";
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
         }
 
         async function runCode() {

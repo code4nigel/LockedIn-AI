@@ -76,6 +76,38 @@ QUESTIONS = {
             "java_test": "public class Main {\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        if(sol.fib(4) != 3) throw new RuntimeException(\"Test Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
             "js_test": "\nconst sol = new Solution();\nif (sol.fib(4) !== 3) throw new Error('Test Failed');\nconsole.log('ALL TESTS PASSED');"
         }
+    ],
+    4: [
+        {
+            "id": 401,
+            "title": "Merge Intervals",
+            "difficulty": 4,
+            "category": "Arrays",
+            "description": "Given an array of intervals where intervals[i] = [start, end], merge all overlapping intervals.",
+            "example": "Input: [[1,3],[2,6],[8,10],[15,18]]\nOutput: [[1,6],[8,10],[15,18]]",
+            "python_boilerplate": "class Solution:\n    def merge(self, intervals: list[list[int]]) -> list[list[int]]:\n        pass",
+            "java_boilerplate": "import java.util.*;\nclass Solution {\n    public int[][] merge(int[][] intervals) {\n        return new int[][]{};\n    }\n}",
+            "javascript_boilerplate": "class Solution {\n    merge(intervals) {\n        return [];\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    sol = Solution()\n    assert sol.merge([[1,3],[2,6],[8,10],[15,18]]) == [[1,6],[8,10],[15,18]]\n    print('ALL TESTS PASSED')",
+            "java_test": "import java.util.*;\npublic class Main {\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        int[][] res = sol.merge(new int[][]{{1,3},{2,6},{8,10},{15,18}});\n        if(res.length != 3 || res[0][1] != 6) throw new RuntimeException(\"Test Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst sol = new Solution();\nconst res = sol.merge([[1,3],[2,6],[8,10],[15,18]]);\nif(JSON.stringify(res) !== JSON.stringify([[1,6],[8,10],[15,18]])) throw new Error('Test Failed');\nconsole.log('ALL TESTS PASSED');"
+        }
+    ],
+    5: [
+        {
+            "id": 501,
+            "title": "Maximum Subarray",
+            "difficulty": 5,
+            "category": "Arrays",
+            "description": "Given an integer array nums, find the contiguous subarray (containing at least one number) which has the largest sum and return its sum.",
+            "example": "Input: nums = [-2,1,-3,4,-1,2,1,-5,4]\nOutput: 6",
+            "python_boilerplate": "class Solution:\n    def maxSubArray(self, nums: list[int]) -> int:\n        pass",
+            "java_boilerplate": "class Solution {\n    public int maxSubArray(int[] nums) {\n        return 0;\n    }\n}",
+            "javascript_boilerplate": "class Solution {\n    maxSubArray(nums) {\n        return 0;\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    sol = Solution()\n    assert sol.maxSubArray([-2,1,-3,4,-1,2,1,-5,4]) == 6\n    print('ALL TESTS PASSED')",
+            "java_test": "public class Main {\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        if(sol.maxSubArray(new int[]{-2,1,-3,4,-1,2,1,-5,4}) != 6) throw new RuntimeException(\"Test Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst sol = new Solution();\nif (sol.maxSubArray([-2,1,-3,4,-1,2,1,-5,4]) !== 6) throw new Error('Test Failed');\nconsole.log('ALL TESTS PASSED');"
+        }
     ]
 }
 

@@ -18,18 +18,21 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
-load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+# Force reload environment to catch .env changes
+load_dotenv(override=True)
+GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+
 if GOOGLE_API_KEY:
+    print(f"DEBUG: Gemini API Key loaded (first 4 chars: {GOOGLE_API_KEY[:4]}...)")
     genai.configure(api_key=GOOGLE_API_KEY)
-    llm_model = genai.GenerativeModel('gemini-2.0-flash')
+    llm_model = genai.GenerativeModel('gemini-3-flash-preview')
 else:
     llm_model = None
 
 from backend.ai_proctor.tracker import FaceTracker
 from backend.ai_proctor.audio_monitor import AudioMonitor
 from backend.ai_proctor.questions import get_question_by_difficulty, get_question_by_id
-from backend.database import init_db, save_session, get_profile, create_user, get_user_by_username
+from backend.database import init_db, save_session, get_profile, create_user, get_user_by_username, get_random_aptitude_questions, check_aptitude_answers
 
 app = Flask(__name__, template_folder=os.path.join(project_root, 'frontend'), static_folder=os.path.join(project_root, 'frontend'))
 app.secret_key = 'super_secret_lockedin_key'
@@ -172,7 +175,8 @@ def start_test():
                 "violations": 0, "syntax_errors": 0, "logic_errors": 0,
                 "current_difficulty": 1, "status": "SECURE", "violation_logs": [],
                 "level_times": [], "last_level_time": time.time(),
-                "categories_completed": []
+                "categories_completed": [],
+                "aptitude_score": None, "behavioral_feedback": None
             })
             if proctor_state["audio_enabled"]: audio_tracker.start()
     return jsonify({"status": "started"})
@@ -187,9 +191,11 @@ def stop_test():
         v_logs = json.dumps(proctor_state.get("violation_logs", []))
         l_times = json.dumps(proctor_state.get("level_times", []))
         cats = json.dumps(proctor_state.get("categories_completed", []))
+        apt_score = proctor_state.get("aptitude_score")
+        beh_feedback = proctor_state.get("behavioral_feedback")
         
         save_session(user_id, proctor_state["current_difficulty"], proctor_state["violations"], 
-                     proctor_state["syntax_errors"], proctor_state["logic_errors"], v_logs, l_times, cats)
+                     proctor_state["syntax_errors"], proctor_state["logic_errors"], v_logs, l_times, cats, apt_score, beh_feedback)
                      
     proctor_state["is_active"] = False
     if audio_tracker: audio_tracker.stop()
@@ -338,6 +344,49 @@ def ai_interview():
             
         chat = llm_model.start_chat(history=gemini_history)
         response = chat.send_message(prompt)
+        return jsonify({"response": response.text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/get_aptitude_questions')
+def api_get_aptitude_questions():
+    questions = get_random_aptitude_questions(10)
+    return jsonify(questions)
+
+@app.route('/submit_aptitude', methods=['POST'])
+def submit_aptitude():
+    data = request.json
+    detailed_results = check_aptitude_answers(data.get('answers', {}))
+    proctor_state['aptitude_score'] = detailed_results['score']
+    return jsonify(detailed_results)
+
+@app.route('/verbal_chat', methods=['POST'])
+def verbal_chat():
+    if not llm_model:
+        return jsonify({"error": "Gemini API key not configured"}), 500
+    
+    data = request.json
+    history = data.get('history', [])
+    prompt = data.get('prompt')
+    
+    if not history:
+        prompt = f"""
+        Act as a strict but fair Engineering Manager conducting a behavioral and system design interview. 
+        Start by asking a classic behavioral question. Keep your responses very brief (1-3 sentences maximum). 
+        Wait for the candidate's answer before proceeding. 
+        Candidate just said: {prompt}
+        """
+    
+    try:
+        gemini_history = []
+        for msg in history:
+            role = "user" if msg['role'] == "user" else "model"
+            gemini_history.append({"role": role, "parts": [msg['content']]})
+            
+        chat = llm_model.start_chat(history=gemini_history)
+        response = chat.send_message(prompt)
+        
+        proctor_state["behavioral_feedback"] = "Completed verbal interview."
         return jsonify({"response": response.text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

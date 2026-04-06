@@ -19,7 +19,7 @@ project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
 load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
     llm_model = genai.GenerativeModel('gemini-2.0-flash')

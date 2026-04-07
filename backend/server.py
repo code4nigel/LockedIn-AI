@@ -1,7 +1,7 @@
 from flask import Flask, render_template, Response, request, jsonify, session
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 import cv2
 import sys
@@ -22,12 +22,13 @@ sys.path.append(project_root)
 load_dotenv(override=True)
 GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
+GEMINI_MODEL_ID = 'gemini-2.5-flash' # Changed from 2.0-flash to fix rate limit errors
+
 if GOOGLE_API_KEY:
     print(f"DEBUG: Gemini API Key loaded (first 4 chars: {GOOGLE_API_KEY[:4]}...)")
-    genai.configure(api_key=GOOGLE_API_KEY)
-    llm_model = genai.GenerativeModel('gemini-3-flash-preview')
+    client = genai.Client(api_key=GOOGLE_API_KEY)
 else:
-    llm_model = None
+    client = None
 
 from backend.ai_proctor.tracker import FaceTracker
 from backend.ai_proctor.audio_monitor import AudioMonitor
@@ -301,7 +302,7 @@ def run_code():
 
 @app.route('/ai_interview', methods=['POST'])
 def ai_interview():
-    if not llm_model:
+    if not client:
         return jsonify({"error": "Gemini API key not configured"}), 500
     
     data = request.json
@@ -336,13 +337,13 @@ def ai_interview():
         prompt = history[-1]['content']
     
     try:
-        # Convert history format for Gemini if needed
+        # Convert history format for new SDK
         gemini_history = []
         for msg in history[:-1]:
             role = "user" if msg['role'] == "user" else "model"
-            gemini_history.append({"role": role, "parts": [msg['content']]})
+            gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
             
-        chat = llm_model.start_chat(history=gemini_history)
+        chat = client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
         response = chat.send_message(prompt)
         return jsonify({"response": response.text})
     except Exception as e:
@@ -362,7 +363,7 @@ def submit_aptitude():
 
 @app.route('/verbal_chat', methods=['POST'])
 def verbal_chat():
-    if not llm_model:
+    if not client:
         return jsonify({"error": "Gemini API key not configured"}), 500
     
     data = request.json
@@ -384,12 +385,13 @@ def verbal_chat():
         prompt = system_instruction + f"\n\nThe candidate is ready. Introduce yourself briefly and ask your first challenging question. The candidate said: {prompt}"
     
     try:
+        # Convert history format for new SDK
         gemini_history = []
         for msg in history:
             role = "user" if msg['role'] == "user" else "model"
-            gemini_history.append({"role": role, "parts": [msg['content']]})
+            gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
             
-        chat = llm_model.start_chat(history=gemini_history)
+        chat = client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
         response = chat.send_message(prompt)
         
         proctor_state["behavioral_feedback"] = "Completed verbal interview."
@@ -399,7 +401,7 @@ def verbal_chat():
 
 @app.route('/verbal_report', methods=['POST'])
 def verbal_report():
-    if not llm_model:
+    if not client:
         return jsonify({"error": "Gemini API key not configured"}), 500
         
     data = request.json
@@ -426,12 +428,13 @@ def verbal_report():
     """
     
     try:
+        # Convert history format for new SDK
         gemini_history = []
         for msg in history:
             role = "user" if msg['role'] == "user" else "model"
-            gemini_history.append({"role": role, "parts": [msg['content']]})
+            gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
             
-        chat = llm_model.start_chat(history=gemini_history)
+        chat = client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
         response = chat.send_message(prompt)
         
         # Clean up possible markdown block from LLM

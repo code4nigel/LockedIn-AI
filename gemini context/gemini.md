@@ -4,23 +4,25 @@ LockedIn is an AI-powered proctoring and interview preparation system. It combin
 ## Current Understanding
 - **Purpose:** LockedIn is a web-based, AI-proctored coding interview simulator. It watches user behavior (head pose, eyes, audio, tab switches) while they solve algorithm problems in a browser-based Monaco editor.
 - **Backend:** Flask powers the backend. It handles authentication, database connections (SQLite), video streaming via OpenCV, code execution (using `subprocess` in temp dirs), and proctoring logic.
-- **AI Modules:** Uses MediaPipe for face/iris tracking (`tracker.py`) and PyAudio for noise detection (`audio_monitor.py`).
-- **Frontend:** Single-page application (`frontend/index.html`) using Vanilla JS, TailwindCSS, Monaco Editor, and Chart.js for post-session analytics.
+- **AI Modules:** Uses MediaPipe for face/iris tracking (`tracker.py`), PyAudio for noise detection (`audio_monitor.py`), and Google Gemini 2.0 API for technical code evaluation and verbal behavioral mock interviews.
+- **Frontend:** Single-page application (`frontend/index.html`) using Vanilla JS, TailwindCSS, Monaco Editor, and Chart.js for post-session analytics (Skill Radar Charts and progression tracking).
 - **Key Mechanics:**
-  - Timer-based session limits.
+  - Timer-based session limits across Technical Coding, CS Aptitude, and Behavioral interview modules.
   - Video feed overlays violation alerts (e.g., "VIOLATION (LOOK AWAY)").
   - Executing code tracks both syntax and logic errors, contributing to an overall profile score/EXP.
-  - Generates detailed session reports (level reached, violations, time per level).
+  - Voice-to-voice AI behavioral interviews with transcript generation and AI summary reports.
+  - Generates detailed session reports (level reached, violations, time per level, behavioral feedback, aptitude scores).
 
 ## Tech Stack
 - **Backend:** Python 3.10+, Flask, SQLite (`lockedin.db`)
-- **AI/Proctoring:** OpenCV, MediaPipe (Face Mesh), PyAudio, NumPy
+- **AI/Proctoring/Interviewer:** OpenCV, MediaPipe (Face Mesh), PyAudio, NumPy, Google Gemini API
 - **Frontend:** Vanilla HTML/CSS/JS, TailwindCSS, Monaco Editor, Chart.js
 
 ## Key Directories
 - `backend/`: Core server logic (`server.py`, `main.py`) and database interactions (`database.py`).
 - `backend/ai_proctor/`: Specialized AI tracking modules (`tracker.py`, `audio_monitor.py`, `scorer.py`).
-- `frontend/`: Web interface (`index.html`) and assets.
+- `frontend/`: Web interface (`index.html`) and assets.   
+- `gemini context/report/`: Presentation and report outlines with mermaid diagrams (`presentation.md`, `report.md`).
 
 ## Build and Test Commands
 - **Setup:** `python -m venv venv` and `pip install -r requirements.txt`

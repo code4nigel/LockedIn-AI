@@ -2,4 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
-img/
+img/\
+.env
+gemini context/
+"gemini context/"

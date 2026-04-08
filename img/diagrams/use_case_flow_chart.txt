@@ -1,0 +1,12 @@
+flowchart LR
+    U[User] --> L[Login]
+    U --> D[Dashboard]
+    U --> TT[Technical Test]
+    U --> AT[Aptitude Test]
+    U --> BI[Behavioral Interview]
+    P[AI Proctor] --> M[Monitor Session]
+    TT -.-> M
+    I[Gemini AI] --> EC[Evaluate Code]
+    I --> EV[Evaluate Verbal]
+    TT -.-> EC
+    BI -.-> EV

@@ -1,0 +1,25 @@
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant FlaskServer
+    participant Subprocess
+    participant GeminiAPI
+    participant Database
+
+    User->>Frontend: Clicks 'Submit Code'
+    Frontend->>FlaskServer: POST /run_code (code, lang)
+    FlaskServer->>Subprocess: Execute code via temp file
+    Subprocess-->>FlaskServer: Return stdout/stderr
+    FlaskServer-->>Frontend: Display test results
+    
+    User->>Frontend: Clicks 'Practice Interview'
+    Frontend->>FlaskServer: POST /ai_interview (code, history)
+    FlaskServer->>GeminiAPI: Send Prompt with Code
+    GeminiAPI-->>FlaskServer: Return AI Feedback
+    FlaskServer-->>Frontend: Display AI Feedback to User
+    
+    User->>Frontend: Stops Session
+    Frontend->>FlaskServer: POST /stop_test
+    FlaskServer->>Database: Save Session logs, violations, stats
+    Database-->>FlaskServer: OK
+    FlaskServer-->>Frontend: Show Final Report Modal

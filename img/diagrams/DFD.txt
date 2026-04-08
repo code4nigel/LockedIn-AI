@@ -1,0 +1,13 @@
+graph TD
+    U([User]) --> |Login Data| P1(Auth Process)
+    P1 --> |Verify| D1[(Users DB)]
+    U --> |Select Session| P2(Session Manager)
+    P2 --> |Start Proctoring| P3(Proctor Engine)
+    U --> |Video/Audio| P3
+    P3 --> |Log Violations| D2[(Sessions DB)]
+    U --> |Submit Code/Voice| P4(AI Interview Process)
+    P4 --> |Prompt| G[Gemini API]
+    G --> |Response| P4
+    P4 --> |Save Results| D2
+    P2 --> |Fetch History| D1 & D2
+    P2 --> |Show Dashboard| U

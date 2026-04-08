@@ -144,6 +144,7 @@
                         <select id="lang-select" onchange="changeLanguage()" class="bg-zinc-900 border border-zinc-800 text-[10px] rounded px-2 py-1 outline-none text-zinc-400 cursor-pointer">
                             <option value="python">Python 3</option>
                             <option value="java">Java 15</option>
+                            <option value="javascript">JavaScript (Node)</option>
                         </select>
                     </div>
                 </div>
@@ -164,6 +165,57 @@
                 <div class="flex-1 relative bg-black overflow-hidden">
                     <pre id="console-out" class="absolute inset-0 p-4 text-zinc-400 font-mono text-[11px] overflow-y-auto whitespace-pre-wrap">Ready...</pre>
                 </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="view-aptitude" class="hidden pane-container flex-col overflow-y-auto bg-[#0a0a0a] p-8 items-center">
+        <div class="max-w-3xl w-full flex flex-col gap-6">
+            <div class="bg-[#0f0f0f] border border-zinc-800 rounded-xl p-6 flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-black text-white uppercase tracking-tight">Core CS Aptitude</h2>
+                    <p class="text-zinc-500 text-xs mt-1">Select the correct answer for each technical concept.</p>
+                </div>
+                <div class="px-4 py-2 bg-blue-900/20 border border-blue-500/30 rounded-lg text-blue-400 font-mono text-lg font-bold" id="aptitude-timer">10:00</div>
+            </div>
+            <div id="aptitude-container" class="flex flex-col gap-4">
+                <!-- Questions injected here -->
+            </div>
+            <button onclick="submitAptitude()" id="aptitude-submit" class="w-full mt-4 px-6 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold uppercase tracking-widest rounded-xl shadow-lg transition transform hover:scale-[1.02]">Submit Assessment</button>
+        </div>
+    </main>
+
+    <main id="view-verbal" class="hidden pane-container flex-col overflow-y-auto bg-[#0a0a0a] p-8 items-center">
+        <div class="w-full max-w-2xl flex justify-end">
+            <div class="px-4 py-2 bg-orange-900/20 border border-orange-500/30 rounded-lg text-orange-400 font-mono text-lg font-bold" id="verbal-timer">45:00</div>
+        </div>
+        <div class="max-w-2xl w-full flex flex-col items-center gap-8 mt-4">
+            <div class="relative">
+                <div class="w-32 h-32 bg-blue-600/10 rounded-full flex items-center justify-center border-2 border-blue-500/20 relative z-10">
+                    <svg id="verbal-mic-icon" class="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                </div>
+                <div id="verbal-pulse" class="absolute inset-0 bg-blue-500/20 rounded-full animate-ping hidden"></div>
+            </div>
+            
+            <div class="text-center">
+                <h2 class="text-2xl font-black text-white uppercase tracking-tighter">Verbal AI Interview</h2>
+                <p id="verbal-status" class="text-blue-500 text-[10px] font-bold uppercase tracking-widest mt-2">Listening for your response...</p>
+            </div>
+
+            <div class="w-full bg-[#0f0f0f] border border-zinc-800 rounded-2xl p-8 min-h-[150px] flex items-center justify-center text-center italic text-zinc-400 text-lg leading-relaxed shadow-2xl" id="verbal-ai-text">
+                "Hello. I'm your interviewer today. Click 'Start Speaking' and tell me about your most challenging project."
+            </div>
+
+            <div class="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-xs font-mono text-zinc-500" id="verbal-transcript">
+                Transcript will appear here...
+            </div>
+
+            <div class="flex gap-4">
+                <button id="verbal-start-btn" onclick="startVerbalListening()" class="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg transition flex items-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    Start Speaking
+                </button>
+                <button onclick="endVerbalSession()" class="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold uppercase tracking-widest rounded-xl transition">End Interview</button>
             </div>
         </div>
     </main>
@@ -193,6 +245,30 @@
                     <span class="text-4xl font-black text-white" id="prof-count">0</span>
                 </div>
             </div>
+
+            <!-- Skill Analytics Row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2 bg-[#0f0f0f] border border-zinc-800 rounded-xl p-6 h-[400px] flex flex-col">
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-6 px-1">Mastery Distribution</h3>
+                    <div class="flex-1 relative">
+                        <canvas id="skillRadarChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-blue-900/20 to-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col justify-between shadow-2xl">
+                    <div>
+                        <div class="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center border border-blue-500/30 mb-4">
+                            <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <h3 class="text-white text-lg font-black uppercase tracking-tight mb-2">AI Insights</h3>
+                        <p id="ai-reco-text" class="text-zinc-400 text-sm leading-relaxed">Complete more sessions to receive personalized career recommendations based on your performance data.</p>
+                    </div>
+                    <div class="mt-6 pt-6 border-t border-zinc-800/50">
+                        <span class="text-[9px] font-bold text-blue-500 uppercase tracking-widest block mb-1">Top Weakness</span>
+                        <span id="weakest-topic" class="text-white text-xs font-bold uppercase tracking-tighter">Analyzing Profile...</span>
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 px-1">Session History</h3>
                 <div id="history-list" class="flex flex-col gap-3"></div>
@@ -204,41 +280,121 @@
     <div id="time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
         <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
             <div class="p-6 border-b border-zinc-800">
-                <h3 class="text-white text-lg font-bold">Session Setup</h3>
-                <p class="text-zinc-500 text-xs mt-1">Configure your interview settings.</p>
+                <h3 class="text-white text-lg font-bold uppercase tracking-tight">Session Setup</h3>
+                <p class="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mt-1">Select Interview Stage</p>
             </div>
-            <div class="p-6 flex flex-col gap-4">
-                <div class="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl flex items-center justify-between">
+            <div class="p-6 flex flex-col gap-3">
+                <button onclick="closeModal('time-modal'); openModal('coding-time-modal')" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-blue-500/50 rounded-xl transition flex justify-between items-center group">
                     <div>
-                        <span class="text-zinc-200 font-medium block text-sm">Audio Proctoring</span>
-                        <span class="text-zinc-500 text-xs">Detect talking or loud noises.</span>
+                        <span class="text-white font-bold block text-sm">Technical Coding</span>
+                        <span class="text-zinc-500 text-[10px]">Data Structures & Algorithms</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    </div>
+                </button>
+
+                <button onclick="startAptitudeMode()" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500/50 rounded-xl transition flex justify-between items-center group">
+                    <div>
+                        <span class="text-white font-bold block text-sm">Aptitude Assessment</span>
+                        <span class="text-zinc-500 text-[10px]">Core CS & Logical Reasoning</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                    </div>
+                </button>
+
+                <button onclick="closeModal('time-modal'); openModal('verbal-time-modal')" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition flex justify-between items-center group">
+                    <div>
+                        <span class="text-white font-bold block text-sm">Behavioral Mock</span>
+                        <span class="text-zinc-500 text-[10px]">AI Voice-to-Voice Interaction</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </div>
+                </button>
+
+                <div class="p-4 bg-zinc-900/30 border border-zinc-800 rounded-xl flex items-center justify-between mt-2">
+                    <div>
+                        <span class="text-zinc-400 font-bold block text-[10px] uppercase tracking-wider">Audio Proctoring</span>
+                        <span class="text-zinc-600 text-[9px]">Detect talking or loud noises</span>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="audio-toggle" class="sr-only peer">
+                        <input type="checkbox" id="audio-toggle" class="sr-only peer" checked>
                         <div class="w-10 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
                     </label>
                 </div>
-                <button onclick="startSession(600)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group">
+            </div>
+            <div class="p-4 bg-zinc-900/30 flex justify-end">
+                <button onclick="closeModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coding Time Setup Modal -->
+    <div id="coding-time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
+        <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
+            <div class="p-6 border-b border-zinc-800">
+                <h3 class="text-white text-lg font-bold uppercase tracking-tight">Technical Coding</h3>
+                <p class="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mt-1">Select Session Duration</p>
+            </div>
+            <div class="p-6 flex flex-col gap-3">
+                <button onclick="closeModal('coding-time-modal'); startSession(600)" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-blue-500/50 rounded-xl transition flex justify-between items-center group">
                     <div>
-                        <span class="text-zinc-200 font-medium block text-sm">Quick Session</span>
-                        <span class="text-zinc-500 text-xs">Best for simple warm-ups</span>
+                        <span class="text-zinc-200 font-bold block text-sm">Quick Session</span>
+                        <span class="text-zinc-500 text-[10px]">Best for simple warm-ups</span>
                     </div>
                     <span class="text-blue-400 font-mono text-sm group-hover:text-blue-300 bg-blue-900/20 px-3 py-1 rounded-md">10 Min</span>
                 </button>
-                <button onclick="startSession(2700)" class="w-full text-left px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-xl transition flex justify-between items-center group ring-1 ring-blue-500/30">
+                <button onclick="closeModal('coding-time-modal'); startSession(2700)" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-blue-500/50 rounded-xl transition flex justify-between items-center group ring-1 ring-blue-500/30">
                     <div>
                         <span class="text-blue-400 font-bold block text-sm">Real Interview Prep</span>
-                        <span class="text-zinc-500 text-xs">Standard interview length</span>
+                        <span class="text-zinc-500 text-[10px]">Standard interview length</span>
                     </div>
                     <span class="text-blue-400 font-mono text-sm group-hover:text-blue-300 bg-blue-900/20 px-3 py-1 rounded-md">45 Min</span>
                 </button>
                 <div class="flex gap-2 mt-2 items-center">
                     <input type="text" id="custom-time" placeholder="M or M:SS" class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono">
-                    <button onclick="startCustomSession()" class="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm rounded-xl transition">Start</button>
+                    <button onclick="closeModal('coding-time-modal'); startCustomSession()" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl transition shadow-lg">Start</button>
                 </div>
             </div>
-            <div class="p-4 bg-zinc-900/30 flex justify-end">
-                <button onclick="closeModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+            <div class="p-4 bg-zinc-900/30 flex justify-end gap-2">
+                <button onclick="closeModal('coding-time-modal'); openModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Back</button>
+                <button onclick="closeModal('coding-time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verbal Time Setup Modal -->
+    <div id="verbal-time-modal" class="hidden fixed inset-0 bg-black/70 modal-blur z-50 flex items-center justify-center transition-opacity">
+        <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-[400px] shadow-2xl overflow-hidden transform transition-all">
+            <div class="p-6 border-b border-zinc-800">
+                <h3 class="text-white text-lg font-bold uppercase tracking-tight">Behavioral Mock</h3>
+                <p class="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mt-1">Select Session Duration</p>
+            </div>
+            <div class="p-6 flex flex-col gap-3">
+                <button onclick="closeModal('verbal-time-modal'); startVerbalMode(600)" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition flex justify-between items-center group">
+                    <div>
+                        <span class="text-zinc-200 font-bold block text-sm">Quick Chat</span>
+                        <span class="text-zinc-500 text-[10px]">Basic intro & one scenario</span>
+                    </div>
+                    <span class="text-orange-400 font-mono text-sm group-hover:text-orange-300 bg-orange-900/20 px-3 py-1 rounded-md">10 Min</span>
+                </button>
+                <button onclick="closeModal('verbal-time-modal'); startVerbalMode(2700)" class="w-full text-left p-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-orange-500/50 rounded-xl transition flex justify-between items-center group ring-1 ring-orange-500/30">
+                    <div>
+                        <span class="text-orange-400 font-bold block text-sm">Full Behavioral Loop</span>
+                        <span class="text-zinc-500 text-[10px]">Deep dive & system design</span>
+                    </div>
+                    <span class="text-orange-400 font-mono text-sm group-hover:text-orange-300 bg-orange-900/20 px-3 py-1 rounded-md">45 Min</span>
+                </button>
+                <div class="flex gap-2 mt-2 items-center">
+                    <input type="text" id="verbal-custom-time" placeholder="M or M:SS" class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none focus:border-orange-500 transition font-mono">
+                    <button onclick="const t=parseCustomTime(document.getElementById('verbal-custom-time').value); if(t>0){closeModal('verbal-time-modal'); startVerbalMode(t);}else{alert('Invalid time');}" class="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-xl transition shadow-lg">Start</button>
+                </div>
+            </div>
+            <div class="p-4 bg-zinc-900/30 flex justify-end gap-2">
+                <button onclick="closeModal('verbal-time-modal'); openModal('time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Back</button>
+                <button onclick="closeModal('verbal-time-modal')" class="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-wider transition px-4 py-2">Cancel</button>
             </div>
         </div>
     </div>
@@ -288,6 +444,47 @@
         </div>
     </div>
 
+    <!-- Verbal Report Modal -->
+    <div id="verbal-report-modal" class="hidden fixed inset-0 bg-black/90 modal-blur z-[60] flex items-center justify-center transition-opacity">
+        <div class="glass-card rounded-2xl w-[700px] max-h-[85vh] overflow-hidden transform transition-all relative flex flex-col">
+            <div class="p-6 border-b border-zinc-800 bg-[#0a0a0a] flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-orange-600/20 rounded-full flex items-center justify-center border border-orange-500/30">
+                        <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-white text-xl font-black uppercase tracking-tighter">Behavioral Assessment</h3>
+                        <p class="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Final Report</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-zinc-500 text-[10px] uppercase font-bold tracking-widest block mb-1">Score</span>
+                    <span class="text-3xl font-black text-orange-500" id="verbal-report-score">0</span><span class="text-zinc-600 text-lg">/100</span>
+                </div>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 bg-[#0f0f0f] flex flex-col gap-6">
+                <div class="bg-orange-900/10 border border-orange-500/20 p-5 rounded-xl">
+                    <h4 class="text-orange-400 text-xs font-bold uppercase tracking-widest mb-2">Interviewer Summary</h4>
+                    <p class="text-zinc-300 text-sm leading-relaxed" id="verbal-report-summary">Loading summary...</p>
+                </div>
+                
+                <div>
+                    <h4 class="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4">Question Breakdown</h4>
+                    <div id="verbal-report-questions" class="flex flex-col gap-4">
+                        <!-- Questions injected here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-[#0a0a0a] border-t border-zinc-800 shrink-0">
+                <button onclick="switchTab('dashboard'); closeModal('verbal-report-modal');" class="w-full px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold uppercase tracking-wider text-xs transition shadow-lg">
+                    Return to Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Active Incident Logs Modal (High z-index to stay on top) -->
     <div id="logs-modal" class="hidden fixed inset-0 bg-black/80 modal-blur z-[300] flex items-center justify-center transition-opacity">
         <div class="glass-card rounded-2xl w-[450px] shadow-2xl overflow-hidden transform transition-all relative flex flex-col max-h-[80vh]">
@@ -301,6 +498,38 @@
                 </button>
             </div>
             <div class="p-4 overflow-y-auto flex-1 bg-[#0a0a0a]" id="logs-container">
+            </div>
+        </div>
+    </div>
+
+    <!-- AI INTERVIEW MODAL -->
+    <div id="ai-interview-modal" class="hidden fixed inset-0 bg-black/90 modal-blur z-[400] flex items-center justify-center transition-opacity p-6">
+        <div class="bg-[#0f0f0f] border border-zinc-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-[#0a0a0a]">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center border border-blue-500/30">
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-white text-lg font-black uppercase tracking-tighter text-blue-500">AI Technical Interview</h3>
+                        <p class="text-zinc-500 text-[10px] font-mono uppercase tracking-widest">Powered by Gemini 2.0</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('ai-interview-modal')" class="text-zinc-500 hover:text-white transition p-2 bg-zinc-900 rounded-full border border-zinc-800 hover:bg-zinc-800">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div id="ai-chat-container" class="p-6 overflow-y-auto flex-1 flex flex-col gap-4 bg-[#0a0a0a] font-mono text-sm leading-relaxed">
+                <div class="text-zinc-500 text-center py-10 animate-pulse text-[10px] uppercase tracking-widest">Interviewer is analyzing your solution...</div>
+            </div>
+
+            <div class="p-4 border-t border-zinc-800 bg-[#0f0f0f] flex gap-3">
+                <input type="text" id="ai-chat-input" placeholder="Type your response..." class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono" onkeypress="if(event.key==='Enter') sendAIMessage()">
+                <button onclick="sendAIMessage()" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl transition shadow-lg flex items-center gap-2">
+                    Send
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                </button>
             </div>
         </div>
     </div>
@@ -369,13 +598,46 @@
         let testTimer, timeLeft = 0, totalDuration = 0;
         let sessionLogs = [];
         let isLoginMode = true;
-        let chartInstance = null; 
+        let chartInstance = null;
+        let performanceChartInstance = null; 
         window.userHistoryData = []; 
+        let lastKeystrokeTime = 0;
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('monaco-anchor'), {
                 value: "# Start a session to load code.",
                 language: 'python', theme: 'vs-dark', automaticLayout: true, readOnly: true, fontSize: 13, minimap: { enabled: false }
+            });
+
+            // --- Keystroke Dynamics & Copy-Paste Detection ---
+            editor.onKeyDown((e) => {
+                if (!testing) return;
+                const now = Date.now();
+                if (lastKeystrokeTime > 0) {
+                    const diff = now - lastKeystrokeTime;
+                    // Unnatural speed: multiple keys in < 10ms usually means automation or rapid bursts
+                    if (diff < 10) {
+                        fetch('/log_violation', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ reason: 'UNNATURAL TYPING' })
+                        });
+                    }
+                }
+                lastKeystrokeTime = now;
+            });
+
+            editor.onDidPaste((e) => {
+                if (!testing) return;
+                // Detect large pastes which often indicate external copying
+                const pastedText = editor.getModel().getValueInRange(e.range);
+                if (pastedText.length > 50) {
+                    fetch('/log_violation', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ reason: 'CODE PASTED' })
+                    });
+                }
             });
             
             checkAuthentication();
@@ -471,13 +733,17 @@
             if(!currentQuestion) return;
             const lang = document.getElementById('lang-select').value;
             monaco.editor.setModelLanguage(editor.getModel(), lang);
-            editor.setValue(lang === 'python' ? currentQuestion.python_boilerplate : currentQuestion.java_boilerplate);
+            if (lang === 'python') editor.setValue(currentQuestion.python_boilerplate);
+            else if (lang === 'java') editor.setValue(currentQuestion.java_boilerplate);
+            else if (lang === 'javascript') editor.setValue(currentQuestion.javascript_boilerplate);
         }
 
         function resetCode() {
             if(!currentQuestion) return;
             const lang = document.getElementById('lang-select').value;
-            editor.setValue(lang === 'python' ? currentQuestion.python_boilerplate : currentQuestion.java_boilerplate);
+            if (lang === 'python') editor.setValue(currentQuestion.python_boilerplate);
+            else if (lang === 'java') editor.setValue(currentQuestion.java_boilerplate);
+            else if (lang === 'javascript') editor.setValue(currentQuestion.javascript_boilerplate);
         }
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -514,6 +780,8 @@
         function switchTab(tab) {
             document.getElementById('view-editor').classList.toggle('hidden', tab !== 'editor');
             document.getElementById('view-dashboard').classList.toggle('hidden', tab !== 'dashboard');
+            document.getElementById('view-aptitude').classList.toggle('hidden', tab !== 'aptitude');
+            document.getElementById('view-verbal').classList.toggle('hidden', tab !== 'verbal');
             
             const tabEd = document.getElementById('tab-editor');
             const tabDash = document.getElementById('tab-dashboard');
@@ -521,10 +789,81 @@
             if(tab === 'editor') {
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-blue-500 border-b-2 border-blue-500 px-2 h-full";
                 tabDash.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
-            } else {
+            } else if(tab === 'dashboard') {
                 tabDash.className = "text-xs font-bold uppercase tracking-widest text-blue-500 border-b-2 border-blue-500 px-2 h-full";
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
                 loadProfile(); 
+            } else {
+                // For aptitude/verbal, hide standard tabs
+                tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
+                tabDash.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
+            }
+        }
+
+        let skillChartInstance = null;
+        function renderSkillChart(stats) {
+            try {
+                if (typeof Chart === 'undefined') {
+                    console.error("Chart.js not loaded yet.");
+                    return;
+                }
+                const canvas = document.getElementById('skillRadarChart');
+                if(!canvas) return;
+                const ctx = canvas.getContext('2d');
+                
+                if (skillChartInstance) skillChartInstance.destroy();
+
+                const categories = Object.keys(stats).length > 0 ? Object.keys(stats) : ["Arrays", "Strings", "DP", "Graphs", "Trees", "Sorting"];
+                const values = categories.map(cat => stats[cat] || 0);
+                
+                // AI Recommendation logic based on stats
+                const statEntries = Object.entries(stats);
+                if (statEntries.length > 0) {
+                    const sorted = statEntries.sort((a,b) => a[1] - b[1]);
+                    const weakest = sorted[0][0];
+                    document.getElementById('ai-reco-text').innerText = `You've shown great progress, but your ${weakest} skills could use more practice. Try focusing on ${weakest} challenges in your next session to balance your profile.`;
+                    document.getElementById('weakest-topic').innerText = weakest;
+                } else {
+                    document.getElementById('ai-reco-text').innerText = "Complete more sessions to receive personalized career recommendations based on your performance data.";
+                    document.getElementById('weakest-topic').innerText = "Analyzing Profile...";
+                }
+
+                skillChartInstance = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            label: 'Mastery Level',
+                            data: values,
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderColor: '#3b82f6',
+                            pointBackgroundColor: '#3b82f6',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#3b82f6',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            r: {
+                                angleLines: { color: 'rgba(63, 63, 70, 0.5)' },
+                                grid: { color: 'rgba(63, 63, 70, 0.5)' },
+                                pointLabels: { color: '#a1a1aa', font: { size: 10, weight: 'bold' } },
+                                ticks: { display: false, stepSize: 1 },
+                                suggestedMin: 0,
+                                suggestedMax: 5
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Error rendering skill chart:", e);
             }
         }
 
@@ -540,6 +879,8 @@
                 document.getElementById('prof-points').innerText = data.user.total_points + " EXP";
                 document.getElementById('prof-count').innerText = data.total_sessions;
                 
+                if (data.category_stats) renderSkillChart(data.category_stats);
+                
                 window.userHistoryData = data.history || [];
                 
                 const list = document.getElementById('history-list');
@@ -551,18 +892,31 @@
                 }
                 
                 window.userHistoryData.forEach((s, index) => {
+                    let sessionType = "Technical Coding";
+                    let iconColor = "text-blue-400 border-blue-800/30 bg-blue-900/10";
+                    let iconSvg = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>`;
+
+                    if (s.behavioral_feedback) {
+                        sessionType = "Behavioral Mock";
+                        iconColor = "text-orange-500 border-orange-800/30 bg-orange-900/10";
+                        iconSvg = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>`;
+                    } else if (s.aptitude_score !== null) {
+                        sessionType = "Aptitude Assessment";
+                        iconColor = "text-purple-500 border-purple-800/30 bg-purple-900/10";
+                        iconSvg = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>`;
+                    }
+                    
                     const volColor = s.violations > 0 ? "text-red-500" : "text-green-500";
                     const expEarned = Math.max(0, (s.max_level * 100) - (s.violations * 10));
                     
                     list.innerHTML += `
                         <div class="bg-[#0f0f0f] border border-zinc-800 p-5 rounded-xl flex justify-between items-center hover:border-zinc-700 transition cursor-default">
                             <div class="flex items-center gap-6">
-                                <div class="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-zinc-900 border border-zinc-800">
-                                    <span class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Lvl</span>
-                                    <span class="text-xl font-black text-white">${s.max_level}</span>
+                                <div class="flex flex-col items-center justify-center w-14 h-14 rounded-lg border ${iconColor}">
+                                    ${iconSvg}
                                 </div>
                                 <div>
-                                    <span class="text-white text-sm font-bold block mb-1">Session Recorded</span>
+                                    <span class="text-white text-sm font-bold block mb-1">${sessionType}</span>
                                     <span class="text-[10px] font-mono text-zinc-500">${s.timestamp}</span>
                                 </div>
                             </div>
@@ -637,39 +991,46 @@
         }
 
         function renderGraph(maxLevel, levelTimesStr) {
+            console.log("Rendering graph for level:", maxLevel, "Data:", levelTimesStr);
             const canvas = document.getElementById('sessionGraph');
-            if(!canvas) return;
+            if(!canvas) {
+                console.error("Canvas 'sessionGraph' not found");
+                return;
+            }
             const ctx = canvas.getContext('2d');
             
-            if (chartInstance) chartInstance.destroy();
+            if (typeof Chart === 'undefined') {
+                console.error("Chart.js is not loaded!");
+                return;
+            }
 
-            const points = Math.max(3, maxLevel);
+            if (performanceChartInstance) performanceChartInstance.destroy();
+
+            const points = Math.max(3, parseInt(maxLevel) || 1);
             const labels = Array.from({length: points}, (_, i) => `Lvl ${i+1}`);
             
             let userData = [];
             try {
-                if (levelTimesStr) {
+                if (levelTimesStr && levelTimesStr !== "[]") {
                     const times = JSON.parse(levelTimesStr);
-                    let cumulative = 0;
-                    for (let t of times) {
-                        cumulative += t;
-                        userData.push(parseFloat(cumulative.toFixed(1)));
-                    }
+                    // Use actual times per level, not cumulative
+                    userData = times.map(t => parseFloat(parseFloat(t).toFixed(1)));
                 }
-            } catch (e) { console.error("Level times parse error"); }
+            } catch (e) { console.error("Level times parse error:", e); }
 
-            // If user didn't complete a level, mock it or pad it to match the graph size
+            // If user didn't complete a level or data is missing, pad or mock
             if (userData.length === 0) {
-                userData = labels.map((_, i) => parseFloat(((i + 1) * 2.5 + (Math.random() * 2)).toFixed(1)));
+                console.log("No user data, using mock data for visualization");
+                userData = labels.map((_, i) => parseFloat((2.0 + Math.random() * 3).toFixed(1)));
             } else {
                 while (userData.length < points) {
-                    userData.push(userData[userData.length - 1]);
+                    userData.push(0); // Pad with zeros for levels not reached
                 }
             }
 
-            const globalData = labels.map((_, i) => parseFloat(((i + 1) * 1.5 + (Math.random() * 1.5)).toFixed(1)));
+            const globalData = labels.map((_, i) => parseFloat((1.5 + Math.random() * 1.5).toFixed(1)));
 
-            chartInstance = new Chart(ctx, {
+            performanceChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -687,7 +1048,7 @@
                             pointHoverRadius: 6
                         },
                         {
-                            label: 'Global Best',
+                            label: 'Avg. Dev Time',
                             data: globalData,
                             borderColor: '#a1a1aa',
                             borderWidth: 2,
@@ -701,12 +1062,14 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 1000 },
                     plugins: {
                         legend: { labels: { color: '#d4d4d8', font: { family: 'Inter', size: 10 } } },
                         tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#10b981', padding: 10, cornerRadius: 8 }
                     },
                     scales: {
                         y: { 
+                            beginAtZero: true,
                             grid: { color: '#27272a', drawBorder: false }, 
                             ticks: { color: '#a1a1aa', font: { family: 'Inter', size: 10 } },
                             title: { display: true, text: 'Time Taken (mins)', color: '#71717a', font: { size: 10 } }
@@ -718,6 +1081,7 @@
                     }
                 }
             });
+            console.log("Performance Chart created successfully");
         }
 
         function runTimerLogic() {
@@ -839,6 +1203,7 @@
             testing = false;
             clearInterval(statusTimer);
             clearInterval(testTimer);
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
             
             // UI RESET LOGIC TO MATCH INITIAL STATE
             const feed = document.getElementById('feed');
@@ -991,6 +1356,345 @@
             }
         }
 
+        let aiChatHistory = [];
+
+        function startAIInterview() {
+            aiChatHistory = [];
+            document.getElementById('ai-chat-container').innerHTML = '<div class="text-zinc-500 text-center py-10 animate-pulse text-[10px] uppercase tracking-widest">Interviewer is analyzing your solution...</div>';
+            openModal('ai-interview-modal');
+            
+            // Initial call to get feedback
+            sendAIMessage(true);
+        }
+
+        async function sendAIMessage(isInitial = false) {
+            const input = document.getElementById('ai-chat-input');
+            const container = document.getElementById('ai-chat-container');
+            const message = input.value.trim();
+            
+            if (!isInitial && !message) return;
+            
+            if (isInitial) {
+                // Keep the loading state
+            } else {
+                appendAIMessage('user', message);
+                input.value = '';
+                aiChatHistory.push({role: 'user', content: message});
+            }
+
+            try {
+                const res = await fetch('/ai_interview', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        code: editor.getValue(),
+                        language: document.getElementById('lang-select').value,
+                        question_id: currentQuestion.id,
+                        history: aiChatHistory
+                    })
+                });
+                const data = await res.json();
+                
+                if (isInitial) container.innerHTML = ''; // Clear loading
+
+                if (data.response) {
+                    appendAIMessage('model', data.response);
+                    aiChatHistory.push({role: 'model', content: data.response});
+                } else {
+                    appendAIMessage('model', "Error: " + (data.error || "Failed to get response"));
+                }
+            } catch(e) {
+                appendAIMessage('model', "Connection error. Ensure backend is running with Gemini API key.");
+            }
+        }
+
+        function appendAIMessage(role, text) {
+            const container = document.getElementById('ai-chat-container');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = role === 'user' ? 'self-end bg-blue-600/20 border border-blue-500/30 p-3 rounded-xl max-w-[80%] text-zinc-200' : 'self-start bg-zinc-900 border border-zinc-800 p-3 rounded-xl max-w-[80%] text-zinc-300';
+            
+            const roleLabel = document.createElement('span');
+            roleLabel.className = 'text-[9px] font-bold uppercase tracking-widest block mb-1 ' + (role === 'user' ? 'text-blue-400' : 'text-zinc-500');
+            roleLabel.innerText = role === 'user' ? 'You' : 'Interviewer';
+            
+            const content = document.createElement('div');
+            content.className = 'whitespace-pre-wrap';
+            content.innerText = text;
+            
+            msgDiv.appendChild(roleLabel);
+            msgDiv.appendChild(content);
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // --- APTITUDE LOGIC ---
+        let aptitudeQuestions = [];
+        let aptitudeTimerInterval = null;
+
+        async function startAptitudeMode() {
+            closeModal('time-modal');
+            switchTab('aptitude');
+            testing = true;
+            
+            try {
+                const res = await fetch('/get_aptitude_questions');
+                aptitudeQuestions = await res.json();
+                renderAptitudeQuestions();
+                
+                let timeSecs = 600; // 10 minutes
+                document.getElementById('aptitude-timer').innerText = formatTime(timeSecs);
+                
+                aptitudeTimerInterval = setInterval(() => {
+                    timeSecs--;
+                    document.getElementById('aptitude-timer').innerText = formatTime(timeSecs);
+                    if(timeSecs <= 0) {
+                        clearInterval(aptitudeTimerInterval);
+                        submitAptitude();
+                    }
+                }, 1000);
+
+                // Start AI proctoring in background
+                fetch('/start_test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ audio: true }) });
+                statusTimer = setInterval(checkStatus, 1000);
+            } catch(e) { console.error("Aptitude fetch failed", e); }
+        }
+
+        function renderAptitudeQuestions() {
+            const container = document.getElementById('aptitude-container');
+            container.innerHTML = "";
+            aptitudeQuestions.forEach((q, i) => {
+                container.innerHTML += `
+                    <div class="bg-[#0f0f0f] border border-zinc-800 p-6 rounded-xl">
+                        <span class="text-[9px] font-bold text-blue-500 uppercase tracking-widest block mb-2">${q.category}</span>
+                        <h4 class="text-white text-sm font-bold mb-4">${i+1}. ${q.question}</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            ${['a','b','c','d'].map(opt => `
+                                <label class="flex items-center gap-3 p-3 bg-zinc-900 border border-zinc-800 rounded-lg cursor-pointer hover:border-blue-500/50 transition">
+                                    <input type="radio" name="q${q.id}" value="${q['option_'+opt]}" class="w-4 h-4 accent-blue-500">
+                                    <span class="text-xs text-zinc-300">${q['option_'+opt]}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function submitAptitude() {
+            clearInterval(aptitudeTimerInterval);
+            const answers = {};
+            aptitudeQuestions.forEach(q => {
+                const selected = document.querySelector(`input[name="q${q.id}"]:checked`);
+                if(selected) answers[q.id] = selected.value;
+            });
+
+            try {
+                const res = await fetch('/submit_aptitude', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ answers })
+                });
+                const data = await res.json();
+                
+                const container = document.getElementById('aptitude-container');
+                container.innerHTML = `
+                    <div class="text-center p-8 bg-[#0f0f0f] border border-zinc-800 rounded-xl mb-2">
+                        <h2 class="text-5xl font-black text-white mb-2">${data.score} <span class="text-zinc-600 text-2xl">/ ${data.total}</span></h2>
+                        <p class="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">Assessment Score</p>
+                    </div>
+                    <div class="flex flex-col gap-4">
+                        ${data.results.map((r, i) => `
+                            <div class="bg-zinc-900/50 border ${r.is_correct ? 'border-green-500/30 bg-green-900/10' : 'border-red-500/30 bg-red-900/10'} p-5 rounded-xl relative overflow-hidden">
+                                <div class="absolute top-0 left-0 w-1 h-full ${r.is_correct ? 'bg-green-500' : 'bg-red-500'}"></div>
+                                <h4 class="text-white text-sm font-bold mb-3 pl-2">${i+1}. ${r.question}</h4>
+                                <div class="flex flex-col gap-2 pl-2">
+                                    <div class="flex items-center gap-2 text-xs font-mono">
+                                        <span class="font-bold text-zinc-500 uppercase tracking-widest w-24">Your Answer:</span>
+                                        <span class="${r.is_correct ? 'text-green-400' : 'text-red-400 font-bold line-through'}">${r.user_answer || "Not Answered"}</span>
+                                    </div>
+                                    ${!r.is_correct ? `
+                                    <div class="flex items-center gap-2 text-xs font-mono">
+                                        <span class="font-bold text-zinc-500 uppercase tracking-widest w-24">Correct:</span>
+                                        <span class="text-green-400 font-bold">${r.correct_answer}</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                const subBtn = document.getElementById('aptitude-submit');
+                subBtn.innerText = "Finish & View Full Report";
+                subBtn.onclick = endSessionAndShowReport;
+                subBtn.className = "w-full mt-4 px-6 py-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold uppercase tracking-widest rounded-xl shadow-lg transition";
+                
+                document.getElementById('aptitude-timer').innerText = "DONE";
+                document.getElementById('aptitude-timer').classList.replace('text-blue-400', 'text-green-400');
+            } catch(e) { console.error("Aptitude submit failed", e); }
+        }
+
+        // --- VERBAL INTERVIEW LOGIC ---
+        let recognition = null;
+        let verbalHistory = [];
+
+        function startVerbalMode(seconds) {
+            closeModal('time-modal');
+            closeModal('verbal-time-modal');
+            switchTab('verbal');
+            testing = true;
+            verbalHistory = [];
+            
+            timeLeft = seconds || 2700;
+            totalDuration = seconds || 2700;
+            const timerBadge = document.getElementById('verbal-timer');
+            timerBadge.innerText = formatTime(timeLeft);
+            
+            testTimer = setInterval(() => {
+                timeLeft--;
+                timerBadge.innerText = formatTime(timeLeft);
+                if(timeLeft <= 0) {
+                    clearInterval(testTimer);
+                    endVerbalSession();
+                }
+            }, 1000);
+            
+            document.getElementById('verbal-ai-text').innerText = "Hello. I'm your interviewer today. Click 'Start Speaking' and tell me about your most challenging project.";
+            
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = () => {
+                    document.getElementById('verbal-status').innerText = "Listening...";
+                    document.getElementById('verbal-pulse').classList.remove('hidden');
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
+                    document.getElementById('verbal-transcript').innerText = transcript;
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech Error", event.error);
+                    stopVerbalUI();
+                };
+
+                recognition.onend = async () => {
+                    const text = document.getElementById('verbal-transcript').innerText;
+                    if(text && text !== "Transcript will appear here..." && text.trim() !== "") {
+                        stopVerbalUI();
+                        sendVerbalResponse(text);
+                    } else {
+                        document.getElementById('verbal-status').innerText = "Didn't catch that. Click 'Start Speaking' to try again.";
+                        document.getElementById('verbal-pulse').classList.add('hidden');
+                    }
+                };
+            } else {
+                alert("Speech Recognition not supported in this browser.");
+            }
+            
+            // Background proctoring
+            fetch('/start_test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ audio: true }) });
+            statusTimer = setInterval(checkStatus, 1000);
+        }
+
+        function startVerbalListening() {
+            if(recognition) recognition.start();
+        }
+
+        function stopVerbalUI() {
+            document.getElementById('verbal-status').innerText = "Processing...";
+            document.getElementById('verbal-pulse').classList.add('hidden');
+        }
+
+        async function sendVerbalResponse(userText) {
+            const aiDisplay = document.getElementById('verbal-ai-text');
+            aiDisplay.innerText = "...";
+            
+            try {
+                const res = await fetch('/verbal_chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ prompt: userText, history: verbalHistory })
+                });
+                const data = await res.json();
+                
+                if (res.ok && data.response) {
+                    aiDisplay.innerText = data.response;
+                    verbalHistory.push({role: 'user', content: userText});
+                    verbalHistory.push({role: 'model', content: data.response});
+                    speakText(data.response);
+                } else {
+                    aiDisplay.innerText = "Error: " + (data.error || "Failed to communicate with AI.");
+                    console.error("Verbal chat error from backend:", data.error);
+                }
+            } catch(e) { 
+                console.error("Verbal chat failed", e); 
+                aiDisplay.innerText = "Network Error. Is the backend running?";
+            }
+            
+            document.getElementById('verbal-status').innerText = "Click 'Start Speaking' to reply...";
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        async function endVerbalSession() {
+            testing = false;
+            clearInterval(statusTimer);
+            clearInterval(testTimer);
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            
+            document.getElementById('verbal-status').innerText = "Generating Final Report...";
+            
+            try {
+                const res = await fetch('/verbal_report', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ history: verbalHistory })
+                });
+                const data = await res.json();
+                
+                await fetch('/stop_test'); // Cleanup backend proctoring
+
+                document.getElementById('verbal-report-score').innerText = data.score || 0;
+                document.getElementById('verbal-report-summary').innerText = data.summary || "No summary provided.";
+                
+                const qContainer = document.getElementById('verbal-report-questions');
+                qContainer.innerHTML = '';
+                if (data.questions && data.questions.length > 0) {
+                    data.questions.forEach((q, i) => {
+                        const negMark = q.negative_marks ? `<span class="text-xs font-bold text-red-500 bg-red-900/20 px-2 py-1 rounded ml-2">-${q.negative_marks} pts</span>` : `<span class="text-xs font-bold text-green-500 bg-green-900/20 px-2 py-1 rounded ml-2">+0 pts</span>`;
+                        qContainer.innerHTML += `
+                            <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+                                <h5 class="text-white text-sm font-bold mb-2">Q: ${q.q}</h5>
+                                <div class="flex flex-col gap-2 pl-2 border-l-2 border-zinc-700">
+                                    <p class="text-zinc-400 text-xs italic">" ${q.a} "</p>
+                                    <p class="text-orange-400 text-xs font-medium mt-1">Feedback: ${q.feedback} ${negMark}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    qContainer.innerHTML = "<p class='text-zinc-500 text-sm'>No questions were answered.</p>";
+                }
+                
+                openModal('verbal-report-modal');
+            } catch(e) {
+                console.error("Failed to end verbal session", e);
+                alert("Failed to generate report.");
+                switchTab('dashboard');
+            }
+        }
+
         async function runCode() {
             const rb = document.getElementById('runBtn'), co = document.getElementById('console-out'), st = document.getElementById('exec-status');
             rb.disabled = true; rb.innerText = "..."; st.innerText = "Testing...";
@@ -1003,9 +1707,26 @@
                 co.innerText = data.stdout;
                 st.innerText = data.status.description;
                 if(data.status.id === 3) { 
-                    co.innerHTML += "\n\n<span class='text-green-500 font-bold'>[PASSED ALL TESTS] Moving to next level...</span>"; 
+                    co.innerHTML += "\n\n<span class='text-green-500 font-bold'>[PASSED ALL TESTS] Moving to next level...</span>";
+                    co.innerHTML += `
+                        <div class="mt-4 p-5 bg-gradient-to-br from-blue-900/40 to-zinc-900 border border-blue-500/30 rounded-2xl flex items-center justify-between shadow-2xl">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center border border-blue-500/20">
+                                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-black text-xs uppercase tracking-tighter">AI Interview Ready</h4>
+                                    <p class="text-zinc-500 text-[10px] font-medium">Get real-time feedback from Gemini 2.0</p>
+                                </div>
+                            </div>
+                            <button onclick="startAIInterview()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2">
+                                Practice Interview
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                            </button>
+                        </div>
+                    `;
                     st.classList.replace('text-zinc-600', 'text-green-500');
-                    setTimeout(loadQuestion, 2000); 
+                    setTimeout(loadQuestion, 5000); 
                 } else { 
                     co.classList.add('text-red-400'); 
                     st.classList.replace('text-zinc-600', 'text-red-500');

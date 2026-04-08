@@ -11,8 +11,24 @@ QUESTIONS = {
             "example": "Input: nums = [1,2,3,1]\nOutput: true",
             "python_boilerplate": "class Solution:\n    def containsDuplicate(self, nums: list[int]) -> bool:\n        pass",
             "java_boilerplate": "class Solution {\n    public boolean containsDuplicate(int[] nums) {\n        return false;\n    }\n}",
-            "python_test": "\nif __name__ == '__main__':\n    s = Solution()\n    assert s.containsDuplicate([1,2,3,1]) == True, 'Test 1 Failed: [1,2,3,1]'\n    assert s.containsDuplicate([1,2,3,4]) == False, 'Test 2 Failed: [1,2,3,4]'\n    print('ALL TESTS PASSED')",
-            "java_test": "public class Main {\n    public static void main(String[] args) {\n        Solution s = new Solution();\n        if(s.containsDuplicate(new int[]{1,2,3,1}) != true) throw new RuntimeException(\"Test 1 Failed: [1,2,3,1]\");\n        if(s.containsDuplicate(new int[]{1,2,3,4}) != false) throw new RuntimeException(\"Test 2 Failed: [1,2,3,4]\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}"
+            "javascript_boilerplate": "class Solution {\n    containsDuplicate(nums) {\n        return false;\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    s = Solution()\n    assert s.containsDuplicate([1,2,3,1]) == True, 'Test 1 Failed'\n    assert s.containsDuplicate([1,2,3,4]) == False, 'Test 2 Failed'\n    print('ALL TESTS PASSED')",
+            "java_test": "public class Main {\n    public static void main(String[] args) {\n        Solution s = new Solution();\n        if(s.containsDuplicate(new int[]{1,2,3,1}) != true) throw new RuntimeException(\"Test 1 Failed\");\n        if(s.containsDuplicate(new int[]{1,2,3,4}) != false) throw new RuntimeException(\"Test 2 Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst s = new Solution();\nif (s.containsDuplicate([1,2,3,1]) !== true) throw new Error('Test 1 Failed');\nif (s.containsDuplicate([1,2,3,4]) !== false) throw new Error('Test 2 Failed');\nconsole.log('ALL TESTS PASSED');"
+        },
+        {
+            "id": 101,
+            "title": "Valid Anagram",
+            "difficulty": 1,
+            "category": "Strings",
+            "description": "Given two strings s and t, return true if t is an anagram of s, and false otherwise.",
+            "example": "Input: s = \"anagram\", t = \"nagaram\"\nOutput: true",
+            "python_boilerplate": "class Solution:\n    def isAnagram(self, s: str, t: str) -> bool:\n        pass",
+            "java_boilerplate": "class Solution {\n    public boolean isAnagram(String s, String t) {\n        return false;\n    }\n}",
+            "javascript_boilerplate": "class Solution {\n    isAnagram(s, t) {\n        return false;\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    sol = Solution()\n    assert sol.isAnagram(\"anagram\", \"nagaram\") == True\n    assert sol.isAnagram(\"rat\", \"car\") == False\n    print('ALL TESTS PASSED')",
+            "java_test": "public class Main {\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        if(!sol.isAnagram(\"anagram\", \"nagaram\")) throw new RuntimeException(\"Test 1 Failed\");\n        if(sol.isAnagram(\"rat\", \"car\")) throw new RuntimeException(\"Test 2 Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst sol = new Solution();\nif (sol.isAnagram(\"anagram\", \"nagaram\") !== true) throw new Error('Test 1 Failed');\nif (sol.isAnagram(\"rat\", \"car\") !== false) throw new Error('Test 2 Failed');\nconsole.log('ALL TESTS PASSED');"
         }
     ],
     2: [
@@ -25,8 +41,72 @@ QUESTIONS = {
             "example": "Input: nums = [2,7,11,15], target = 9\nOutput: [0,1]",
             "python_boilerplate": "class Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        pass",
             "java_boilerplate": "class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        return new int[]{};\n    }\n}",
-            "python_test": "\nif __name__ == '__main__':\n    s = Solution()\n    assert sorted(s.twoSum([2,7,11,15], 9)) == [0,1], 'Test 1 Failed'\n    assert sorted(s.twoSum([3,2,4], 6)) == [1,2], 'Test 2 Failed'\n    print('ALL TESTS PASSED')",
-            "java_test": "import java.util.Arrays;\npublic class Main {\n    public static void main(String[] args) {\n        Solution s = new Solution();\n        int[] res1 = s.twoSum(new int[]{2,7,11,15}, 9);\n        Arrays.sort(res1);\n        if(!Arrays.equals(res1, new int[]{0,1})) throw new RuntimeException(\"Test 1 Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}"
+            "javascript_boilerplate": "class Solution {\n    twoSum(nums, target) {\n        return [];\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    s = Solution()\n    assert sorted(s.twoSum([2,7,11,15], 9)) == [0,1]\n    print('ALL TESTS PASSED')",
+            "java_test": "import java.util.Arrays;\npublic class Main {\n    public static void main(String[] args) {\n        Solution s = new Solution();\n        int[] res = s.twoSum(new int[]{2,7,11,15}, 9);\n        Arrays.sort(res);\n        if(!Arrays.equals(res, new int[]{0,1})) throw new RuntimeException(\"Test Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst s = new Solution();\nconst res = s.twoSum([2,7,11,15], 9).sort((a,b)=>a-b);\nif (JSON.stringify(res) !== JSON.stringify([0,1])) throw new Error('Test Failed');\nconsole.log('ALL TESTS PASSED');"
+        },
+        {
+            "id": 201,
+            "title": "Palindrome Number",
+            "difficulty": 2,
+            "category": "Math",
+            "description": "Given an integer x, return true if x is a palindrome, and false otherwise.",
+            "example": "Input: x = 121\nOutput: true",
+            "python_boilerplate": "class Solution:\n    def isPalindrome(self, x: int) -> bool:\n        pass",
+            "java_boilerplate": "class Solution {\n    public boolean isPalindrome(int x) {\n        return false;\n    }\n}",
+            "javascript_boilerplate": "class Solution {\n    isPalindrome(x) {\n        return false;\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    sol = Solution()\n    assert sol.isPalindrome(121) == True\n    assert sol.isPalindrome(-121) == False\n    print('ALL TESTS PASSED')",
+            "java_test": "public class Main {\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        if(!sol.isPalindrome(121)) throw new RuntimeException(\"Test 1 Failed\");\n        if(sol.isPalindrome(-121)) throw new RuntimeException(\"Test 2 Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst sol = new Solution();\nif (sol.isPalindrome(121) !== true) throw new Error('Test 1 Failed');\nif (sol.isPalindrome(-121) !== false) throw new Error('Test 2 Failed');\nconsole.log('ALL TESTS PASSED');"
+        }
+    ],
+    3: [
+        {
+            "id": 301,
+            "title": "Fibonacci Number",
+            "difficulty": 3,
+            "category": "DP",
+            "description": "The Fibonacci numbers, commonly denoted F(n) form a sequence, such that each number is the sum of the two preceding ones.",
+            "example": "Input: n = 4\nOutput: 3",
+            "python_boilerplate": "class Solution:\n    def fib(self, n: int) -> int:\n        pass",
+            "java_boilerplate": "class Solution {\n    public int fib(int n) {\n        return 0;\n    }\n}",
+            "javascript_boilerplate": "class Solution {\n    fib(n) {\n        return 0;\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    sol = Solution()\n    assert sol.fib(4) == 3\n    assert sol.fib(2) == 1\n    print('ALL TESTS PASSED')",
+            "java_test": "public class Main {\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        if(sol.fib(4) != 3) throw new RuntimeException(\"Test Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst sol = new Solution();\nif (sol.fib(4) !== 3) throw new Error('Test Failed');\nconsole.log('ALL TESTS PASSED');"
+        }
+    ],
+    4: [
+        {
+            "id": 401,
+            "title": "Merge Intervals",
+            "difficulty": 4,
+            "category": "Arrays",
+            "description": "Given an array of intervals where intervals[i] = [start, end], merge all overlapping intervals.",
+            "example": "Input: [[1,3],[2,6],[8,10],[15,18]]\nOutput: [[1,6],[8,10],[15,18]]",
+            "python_boilerplate": "class Solution:\n    def merge(self, intervals: list[list[int]]) -> list[list[int]]:\n        pass",
+            "java_boilerplate": "import java.util.*;\nclass Solution {\n    public int[][] merge(int[][] intervals) {\n        return new int[][]{};\n    }\n}",
+            "javascript_boilerplate": "class Solution {\n    merge(intervals) {\n        return [];\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    sol = Solution()\n    assert sol.merge([[1,3],[2,6],[8,10],[15,18]]) == [[1,6],[8,10],[15,18]]\n    print('ALL TESTS PASSED')",
+            "java_test": "import java.util.*;\npublic class Main {\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        int[][] res = sol.merge(new int[][]{{1,3},{2,6},{8,10},{15,18}});\n        if(res.length != 3 || res[0][1] != 6) throw new RuntimeException(\"Test Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst sol = new Solution();\nconst res = sol.merge([[1,3],[2,6],[8,10],[15,18]]);\nif(JSON.stringify(res) !== JSON.stringify([[1,6],[8,10],[15,18]])) throw new Error('Test Failed');\nconsole.log('ALL TESTS PASSED');"
+        }
+    ],
+    5: [
+        {
+            "id": 501,
+            "title": "Maximum Subarray",
+            "difficulty": 5,
+            "category": "Arrays",
+            "description": "Given an integer array nums, find the contiguous subarray (containing at least one number) which has the largest sum and return its sum.",
+            "example": "Input: nums = [-2,1,-3,4,-1,2,1,-5,4]\nOutput: 6",
+            "python_boilerplate": "class Solution:\n    def maxSubArray(self, nums: list[int]) -> int:\n        pass",
+            "java_boilerplate": "class Solution {\n    public int maxSubArray(int[] nums) {\n        return 0;\n    }\n}",
+            "javascript_boilerplate": "class Solution {\n    maxSubArray(nums) {\n        return 0;\n    }\n}",
+            "python_test": "\nif __name__ == '__main__':\n    sol = Solution()\n    assert sol.maxSubArray([-2,1,-3,4,-1,2,1,-5,4]) == 6\n    print('ALL TESTS PASSED')",
+            "java_test": "public class Main {\n    public static void main(String[] args) {\n        Solution sol = new Solution();\n        if(sol.maxSubArray(new int[]{-2,1,-3,4,-1,2,1,-5,4}) != 6) throw new RuntimeException(\"Test Failed\");\n        System.out.println(\"ALL TESTS PASSED\");\n    }\n}",
+            "js_test": "\nconst sol = new Solution();\nif (sol.maxSubArray([-2,1,-3,4,-1,2,1,-5,4]) !== 6) throw new Error('Test Failed');\nconsole.log('ALL TESTS PASSED');"
         }
     ]
 }

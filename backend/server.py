@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, jsonify, session
+from flask import Flask, render_template, Response, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from google import genai
@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 import cv2
 import sys
 import os
+# Suppress C++ backend logging (MediaPipe/TFLite/TensorFlow)
+os.environ['GLOG_minloglevel'] = '2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import threading
 import time
 import webbrowser
@@ -24,11 +27,88 @@ GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 GEMINI_MODEL_ID = 'gemini-2.5-flash' # Changed from 2.0-flash to fix rate limit errors
 
-if GOOGLE_API_KEY:
-    print(f"DEBUG: Gemini API Key loaded (first 4 chars: {GOOGLE_API_KEY[:4]}...)")
-    client = genai.Client(api_key=GOOGLE_API_KEY)
-else:
-    client = None
+_last_loaded_key = None
+client = None
+
+def get_gemini_client():
+    global client, _last_loaded_key
+    load_dotenv(override=True)
+    key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if key:
+        if _last_loaded_key != key or not client:
+            print(f"DEBUG: Initializing/Reloading Gemini client with key (first 4 chars: {key[:4]}...)")
+            client = genai.Client(api_key=key)
+            _last_loaded_key = key
+        return client
+    else:
+        client = None
+        _last_loaded_key = None
+        return None
+
+# Initial load check
+get_gemini_client()
+
+import requests
+
+def get_local_ollama_model():
+    try:
+        res = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if res.status_code == 200:
+            data = res.json()
+            models = data.get("models", [])
+            if models:
+                names = [m.get("name") for m in models if m.get("name")]
+                # Prioritize lightweight models for CPU execution
+                for name in names:
+                    if "llama3.2" in name or "llama3.2:1b" in name or ":1b" in name:
+                        return name
+                for name in names:
+                    if "qwen" in name and ("0.5b" in name or "1.5b" in name or "1.5" in name):
+                        return name
+                # Next, fallback to heavier models like your gemma4
+                for name in names:
+                    if "gemma4:e2b" in name:
+                        return name
+                for name in names:
+                    if "gemma" in name:
+                        return name
+                return names[0]
+    except Exception:
+        pass
+    return "gemma4:e2b"  # Default fallback guess
+
+def generate_local_ai_response(system_prompt, messages_history, format_json=False):
+    """
+    Calls local Ollama API to generate a response.
+    messages_history should be a list of dicts: [{'role': 'user'/'model', 'content': '...'}]
+    """
+    model = get_local_ollama_model()
+    url = "http://localhost:11434/api/chat"
+    
+    # Map roles from Gemini standard ('model') to Ollama standard ('assistant')
+    ollama_messages = [{"role": "system", "content": system_prompt}]
+    for msg in messages_history:
+        role = "assistant" if msg.get("role") == "model" or msg.get("role") == "assistant" else "user"
+        ollama_messages.append({"role": role, "content": msg.get("content") or msg.get("text", "")})
+        
+    payload = {
+        "model": model,
+        "messages": ollama_messages,
+        "stream": False
+    }
+    if format_json:
+        payload["format"] = "json"
+    
+    try:
+        # Increased timeout to 180s to allow heavy models to load and run on slower CPUs
+        response = requests.post(url, json=payload, timeout=180)
+        if response.status_code == 200:
+            res_json = response.json()
+            return res_json.get("message", {}).get("content", "")
+        else:
+            return f"Error: Ollama returned status code {response.status_code}"
+    except Exception as e:
+        return f"Error contacting local Ollama service: {str(e)}. Make sure Ollama is running and model {model} is loaded."
 
 from backend.ai_proctor.tracker import FaceTracker
 from backend.ai_proctor.audio_monitor import AudioMonitor
@@ -55,6 +135,10 @@ audio_tracker = AudioMonitor(threshold=150)
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, 'favicon.ico')
 
 # --- AUTHENTICATION ROUTES ---
 @app.route('/register', methods=['POST'])
@@ -302,14 +386,12 @@ def run_code():
 
 @app.route('/ai_interview', methods=['POST'])
 def ai_interview():
-    if not client:
-        return jsonify({"error": "Gemini API key not configured"}), 500
-    
     data = request.json
     code = data.get('code')
     question_id = data.get('question_id')
     language = data.get('language')
     history = data.get('history', [])
+    model_pref = data.get('model_preference', 'gemini')
     
     question = get_question_by_id(question_id)
     if not question:
@@ -336,18 +418,34 @@ def ai_interview():
     else:
         prompt = history[-1]['content']
     
-    try:
-        # Convert history format for new SDK
-        gemini_history = []
-        for msg in history[:-1]:
-            role = "user" if msg['role'] == "user" else "model"
-            gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
+    # Try Gemini first if user selected it and client is configured
+    gemini_client = get_gemini_client()
+    if model_pref == 'gemini' and gemini_client:
+        try:
+            # Convert history format for new SDK
+            gemini_history = []
+            for msg in history[:-1]:
+                role = "user" if msg['role'] == "user" else "model"
+                gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
+                
+            chat = gemini_client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
+            response = chat.send_message(prompt)
+            return jsonify({"response": response.text})
+        except Exception as e:
+            print(f"Gemini error in /ai_interview: {str(e)}. Falling back to local Ollama.")
             
-        chat = client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
-        response = chat.send_message(prompt)
-        return jsonify({"response": response.text})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Fallback to Local Ollama
+    system_prompt = "You are an expert technical interviewer assessing a candidate's code."
+    if not history:
+        messages = [{"role": "user", "content": prompt}]
+    else:
+        # History contains role/content dicts
+        messages = history
+        
+    local_response = generate_local_ai_response(system_prompt, messages)
+    if "Error contacting local Ollama service" in local_response:
+        return jsonify({"error": local_response}), 500
+    return jsonify({"response": local_response})
 
 @app.route('/get_aptitude_questions')
 def api_get_aptitude_questions():
@@ -363,12 +461,10 @@ def submit_aptitude():
 
 @app.route('/verbal_chat', methods=['POST'])
 def verbal_chat():
-    if not client:
-        return jsonify({"error": "Gemini API key not configured"}), 500
-    
     data = request.json
     history = data.get('history', [])
     prompt = data.get('prompt')
+    model_pref = data.get('model_preference', 'gemini')
     
     system_instruction = """
     You are an expert Technical and Behavioral Interviewer preparing the candidate for top-tier software engineering roles.
@@ -381,31 +477,50 @@ def verbal_chat():
     6. Keep your total response under 4-5 sentences so it can be easily spoken aloud by TTS.
     """
     
-    if not history:
-        prompt = system_instruction + f"\n\nThe candidate is ready. Introduce yourself briefly and ask your first challenging question. The candidate said: {prompt}"
-    
-    try:
-        # Convert history format for new SDK
-        gemini_history = []
-        for msg in history:
-            role = "user" if msg['role'] == "user" else "model"
-            gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
+    # Try Gemini first if user selected it and client is configured
+    gemini_client = get_gemini_client()
+    if model_pref == 'gemini' and gemini_client:
+        try:
+            full_prompt = prompt
+            if not history:
+                full_prompt = system_instruction + f"\n\nThe candidate is ready. Introduce yourself briefly and ask your first challenging question. The candidate said: {prompt}"
+                
+            # Convert history format for new SDK
+            gemini_history = []
+            for msg in history:
+                role = "user" if msg['role'] == "user" else "model"
+                gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
+                
+            chat = gemini_client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
+            response = chat.send_message(full_prompt)
             
-        chat = client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
-        response = chat.send_message(prompt)
+            proctor_state["behavioral_feedback"] = "Completed verbal interview."
+            return jsonify({"response": response.text})
+        except Exception as e:
+            print(f"Gemini error in /verbal_chat: {str(e)}. Falling back to local Ollama.")
+            
+    # Fallback to Local Ollama
+    messages = []
+    if not history:
+        first_input = f"Introduce yourself briefly and ask your first challenging question. The candidate said: {prompt}"
+        messages.append({"role": "user", "content": first_input})
+    else:
+        for msg in history:
+            messages.append(msg)
+        messages.append({"role": "user", "content": prompt})
         
-        proctor_state["behavioral_feedback"] = "Completed verbal interview."
-        return jsonify({"response": response.text})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    local_response = generate_local_ai_response(system_instruction, messages)
+    if "Error contacting local Ollama service" in local_response:
+        return jsonify({"error": local_response}), 500
+        
+    proctor_state["behavioral_feedback"] = "Completed verbal interview."
+    return jsonify({"response": local_response})
 
 @app.route('/verbal_report', methods=['POST'])
 def verbal_report():
-    if not client:
-        return jsonify({"error": "Gemini API key not configured"}), 500
-        
     data = request.json
     history = data.get('history', [])
+    model_pref = data.get('model_preference', 'gemini')
     
     if not history:
         return jsonify({"score": 0, "summary": "No questions answered.", "questions": []})
@@ -427,28 +542,53 @@ def verbal_report():
     ONLY return the raw JSON object, no markdown blocks.
     """
     
-    try:
-        # Convert history format for new SDK
-        gemini_history = []
-        for msg in history:
-            role = "user" if msg['role'] == "user" else "model"
-            gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
+    # Try Gemini first if user selected it and client is configured
+    gemini_client = get_gemini_client()
+    if model_pref == 'gemini' and gemini_client:
+        try:
+            # Convert history format for new SDK
+            gemini_history = []
+            for msg in history:
+                role = "user" if msg['role'] == "user" else "model"
+                gemini_history.append({"role": role, "parts": [{"text": msg['content']}]})
+                
+            chat = gemini_client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
+            response = chat.send_message(prompt)
             
-        chat = client.chats.create(model=GEMINI_MODEL_ID, history=gemini_history)
-        response = chat.send_message(prompt)
+            # Clean up possible markdown block from LLM
+            response_text = response.text.replace('```json', '').replace('```', '').strip()
+            report = json.loads(response_text)
+            
+            # Save to DB
+            proctor_state["behavioral_feedback"] = report.get('summary', 'Interview completed.')
+            proctor_state["aptitude_score"] = report.get('score', 0) // 10  # Scale 100 to 10
+            
+            return jsonify(report)
+        except Exception as e:
+            print(f"Gemini error in /verbal_report: {str(e)}. Falling back to local Ollama.")
+            
+    # Fallback to Local Ollama
+    system_prompt = "You are a report generator. Extract interview analysis in clean JSON format."
+    messages = []
+    for msg in history:
+        messages.append(msg)
+    messages.append({"role": "user", "content": prompt})
+    
+    local_response = generate_local_ai_response(system_prompt, messages, format_json=True)
+    if "Error contacting local Ollama service" in local_response:
+        return jsonify({"error": local_response}), 500
         
-        # Clean up possible markdown block from LLM
-        response_text = response.text.replace('```json', '').replace('```', '').strip()
+    try:
+        # Clean up possible markdown wrappers if Ollama model returns them despite JSON format setting
+        response_text = local_response.replace('```json', '').replace('```', '').strip()
         report = json.loads(response_text)
         
-        # Save to DB
         proctor_state["behavioral_feedback"] = report.get('summary', 'Interview completed.')
         proctor_state["aptitude_score"] = report.get('score', 0) // 10  # Scale 100 to 10
         
         return jsonify(report)
     except Exception as e:
-        print("Error generating verbal report:", str(e))
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Failed to parse Ollama JSON report: {str(e)}. Output was: {local_response}"}), 500
 
 if __name__ == '__main__':
     threading.Thread(target=lambda: (time.sleep(2), webbrowser.open("http://127.0.0.1:5000")), daemon=True).start()

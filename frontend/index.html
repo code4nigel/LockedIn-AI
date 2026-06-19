@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>LockedIn | 7-Star Editor</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <!-- Added Chart.js for Advanced Analytics -->
@@ -103,6 +104,18 @@
             <div id="timer-badge" class="hidden items-center gap-2 px-4 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 font-mono text-sm tracking-widest transition-all duration-300">
                 <svg id="timer-icon" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <span id="timer-text" class="timer-default font-bold">00:00</span>
+            </div>
+            
+            <!-- Model Selection Dropdown -->
+            <div class="relative inline-block text-left" id="model-selector-container">
+                <select id="ai-model-select" onchange="changeModelPreference()" class="appearance-none bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 px-4 py-2 pr-8 rounded-md text-[10px] font-bold uppercase tracking-widest outline-none transition cursor-pointer">
+                    <option value="gemini" selected>☁️ Gemini Cloud</option>
+                    <option value="ollama">💻 Ollama Local</option>
+                </select>
+                <!-- Custom Arrow indicator -->
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-zinc-500">
+                    <svg class="fill-current h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                </div>
             </div>
             
             <button id="toggleBtn" onclick="toggleTest()" class="px-6 py-2 rounded-md bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white text-[11px] font-bold uppercase tracking-widest transition shadow-lg">START SESSION</button>
@@ -584,7 +597,7 @@
                 <div>
                     <h4 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 px-1">Performance Curve: Time per Level</h4>
                     <div class="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-6 h-[300px] w-full relative">
-                        <canvas id="sessionGraph" style="width: 100%; height: 100%;"></canvas>
+                        <canvas id="sessionGraph"></canvas>
                     </div>
                 </div>
             </div>
@@ -600,6 +613,27 @@
         let isLoginMode = true;
         let chartInstance = null;
         let performanceChartInstance = null; 
+        
+        // --- Model Preference Handlers ---
+        function changeModelPreference() {
+            const select = document.getElementById('ai-model-select');
+            if (select) {
+                localStorage.setItem('selected_ai_model', select.value);
+                console.log("AI Model selected:", select.value);
+            }
+        }
+        
+        function getModelPreference() {
+            return localStorage.getItem('selected_ai_model') || 'gemini';
+        }
+        
+        // Initialize dropdown selection
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedModel = getModelPreference();
+            const select = document.getElementById('ai-model-select');
+            if (select) select.value = savedModel;
+        });
+
         window.userHistoryData = []; 
         let lastKeystrokeTime = 0;
 
@@ -792,7 +826,8 @@
             } else if(tab === 'dashboard') {
                 tabDash.className = "text-xs font-bold uppercase tracking-widest text-blue-500 border-b-2 border-blue-500 px-2 h-full";
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
-                loadProfile(); 
+                // Wait 100ms so CSS display none is absolutely gone before ChartJS calculates size
+                setTimeout(loadProfile, 100);
             } else {
                 // For aptitude/verbal, hide standard tabs
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
@@ -1011,10 +1046,11 @@
             
             let userData = [];
             try {
-                if (levelTimesStr && levelTimesStr !== "[]") {
-                    const times = JSON.parse(levelTimesStr);
-                    // Use actual times per level, not cumulative
-                    userData = times.map(t => parseFloat(parseFloat(t).toFixed(1)));
+                if (levelTimesStr) {
+                    let times = typeof levelTimesStr === 'string' ? JSON.parse(levelTimesStr) : levelTimesStr;
+                    if (Array.isArray(times)) {
+                        userData = times.map(t => parseFloat(parseFloat(t).toFixed(1)));
+                    }
                 }
             } catch (e) { console.error("Level times parse error:", e); }
 
@@ -1390,7 +1426,8 @@
                         code: editor.getValue(),
                         language: document.getElementById('lang-select').value,
                         question_id: currentQuestion.id,
-                        history: aiChatHistory
+                        history: aiChatHistory,
+                        model_preference: getModelPreference()
                     })
                 });
                 const data = await res.json();
@@ -1619,7 +1656,7 @@
                 const res = await fetch('/verbal_chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ prompt: userText, history: verbalHistory })
+                    body: JSON.stringify({ prompt: userText, history: verbalHistory, model_preference: getModelPreference() })
                 });
                 const data = await res.json();
                 
@@ -1659,7 +1696,7 @@
                 const res = await fetch('/verbal_report', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ history: verbalHistory })
+                    body: JSON.stringify({ history: verbalHistory, model_preference: getModelPreference() })
                 });
                 const data = await res.json();
                 

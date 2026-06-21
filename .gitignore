@@ -6,4 +6,6 @@ img/*
 !img/Icons/
 !img/icon/
 .env
+gemini context/*
+!gemini context/presentation/
 *.db

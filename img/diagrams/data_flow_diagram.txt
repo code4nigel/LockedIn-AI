@@ -1,6 +1,0 @@
-graph TD
-    User([User]) -- Credentials, Code, Voice -- System[LockedIn System]
-    System -- VideoAudio Stream -- AI_Models[MediaPipe & OpenCV]
-    System -- Prompts & Context -- Gemini[Google Gemini API]
-    Gemini -- Feedback & Responses -- System
-    System -- Dashboard & Reports -- User

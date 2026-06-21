@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, jsonify, session, send_from_directory
+from flask import Flask, render_template, Response, request, jsonify, session, send_from_directory, send_file, after_this_request
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from google import genai
@@ -16,6 +16,10 @@ import subprocess
 import tempfile
 import json
 from datetime import datetime
+import asyncio
+import edge_tts
+import pyttsx3
+import atexit
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
@@ -77,11 +81,62 @@ def get_local_ollama_model():
         pass
     return "gemma4:e2b"  # Default fallback guess
 
+ollama_process = None
+
+def ensure_ollama_running():
+    global ollama_process
+    try:
+        res = requests.get("http://localhost:11434/", timeout=0.5)
+        if res.status_code == 200:
+            return True
+    except requests.exceptions.RequestException:
+        pass
+    
+    try:
+        print("INFO: Ollama not running. Attempting to start 'ollama serve' programmatically...")
+        ollama_process = subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+        )
+        for _ in range(5):
+            time.sleep(1.0)
+            try:
+                res = requests.get("http://localhost:11434/", timeout=0.5)
+                if res.status_code == 200:
+                    print("INFO: Ollama successfully started programmatically.")
+                    return True
+            except requests.exceptions.RequestException:
+                pass
+    except Exception as e:
+        print(f"ERROR: Failed to launch Ollama programmatically: {e}")
+    return False
+
+def stop_ollama_if_started():
+    global ollama_process
+    if ollama_process:
+        print("INFO: Stopping programmatic Ollama server instance...")
+        try:
+            ollama_process.terminate()
+            ollama_process.wait(timeout=2.0)
+        except Exception:
+            try:
+                ollama_process.kill()
+            except Exception:
+                pass
+        ollama_process = None
+
+atexit.register(stop_ollama_if_started)
+
 def generate_local_ai_response(system_prompt, messages_history, format_json=False):
     """
     Calls local Ollama API to generate a response.
     messages_history should be a list of dicts: [{'role': 'user'/'model', 'content': '...'}]
     """
+    if not ensure_ollama_running():
+        return "Error contacting local Ollama service: Failed to start or connect to Ollama background service."
+        
     model = get_local_ollama_model()
     url = "http://localhost:11434/api/chat"
     
@@ -106,7 +161,8 @@ def generate_local_ai_response(system_prompt, messages_history, format_json=Fals
             res_json = response.json()
             return res_json.get("message", {}).get("content", "")
         else:
-            return f"Error: Ollama returned status code {response.status_code}"
+            print(f"[OLLAMA ERROR] URL: {url}, Payload: {payload}, Status: {response.status_code}, Response: {response.text}")
+            return f"Error: Ollama returned status code {response.status_code} ({response.text.strip()})"
     except Exception as e:
         return f"Error contacting local Ollama service: {str(e)}. Make sure Ollama is running and model {model} is loaded."
 
@@ -139,6 +195,10 @@ def index():
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(app.static_folder, 'favicon.ico')
+
+@app.route('/chart.js')
+def chart_js():
+    return send_from_directory(app.static_folder, 'chart.js')
 
 # --- AUTHENTICATION ROUTES ---
 @app.route('/register', methods=['POST'])
@@ -237,6 +297,45 @@ def get_profile_data():
         return jsonify({"error": "Not authenticated"}), 401
     return jsonify(get_profile(user_id))
 
+@app.route('/update_profile', methods=['POST'])
+def update_profile():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+    
+    data = request.json
+    username = data.get('username').strip()
+    avatar = data.get('avatar')
+    new_password = data.get('password')
+    
+    if not username:
+        return jsonify({"success": False, "message": "Username is required"})
+        
+    import sqlite3
+    from backend.database import DB_PATH
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if username is taken by another user
+    cursor.execute("SELECT id FROM users WHERE username = ? AND id != ?", (username, user_id))
+    existing = cursor.fetchone()
+    if existing:
+        conn.close()
+        return jsonify({"success": False, "message": "Username already taken"})
+        
+    # Update username and avatar
+    cursor.execute("UPDATE users SET username = ?, avatar = ? WHERE id = ?", (username, avatar, user_id))
+    
+    # Update password if provided
+    if new_password:
+        hashed = generate_password_hash(new_password)
+        cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, user_id))
+        
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"success": True})
+
 @app.route('/get_current_question')
 def get_current_question():
     q = get_question_by_difficulty(proctor_state["current_difficulty"], 0)
@@ -284,6 +383,7 @@ def stop_test():
                      
     proctor_state["is_active"] = False
     if audio_tracker: audio_tracker.stop()
+    stop_ollama_if_started()
     with camera_lock:
         if camera: camera.release(); camera = None
     return jsonify({"status": "stopped"})
@@ -435,7 +535,13 @@ def ai_interview():
             print(f"Gemini error in /ai_interview: {str(e)}. Falling back to local Ollama.")
             
     # Fallback to Local Ollama
-    system_prompt = "You are an expert technical interviewer assessing a candidate's code."
+    system_prompt = """
+# ROLE
+You are Sarah Mitchell, a professional Technical Interviewer with 15+ years of experience hiring software engineers.
+Your job is NOT to be a friend, coach, cheerleader, or teacher.
+Your job is to accurately assess a candidate's code.
+Maintain a professional, polite, neutral, and analytical interview atmosphere. Do not use emojis, over-praise, or use casual language.
+"""
     if not history:
         messages = [{"role": "user", "content": prompt}]
     else:
@@ -467,15 +573,29 @@ def verbal_chat():
     model_pref = data.get('model_preference', 'gemini')
     
     system_instruction = """
-    You are an expert Technical and Behavioral Interviewer preparing the candidate for top-tier software engineering roles.
-    Role and Responsibilities:
-    1. Conduct a realistic, challenging, and dynamic behavioral and system design interview.
-    2. DO NOT ask the same basic questions every time. Start with a unique behavioral or introductory question (e.g., a specific conflict, a past failure, a unique technical challenge, why they want this role).
-    3. After the candidate answers a question, briefly provide 1-2 sentences of constructive feedback directly to the candidate, pointing out what was good and what was lacking.
-    4. Then, immediately ask the next challenging question (e.g., jump into a high-level system design scenario or another deep behavioral aspect).
-    5. Maintain a professional, strict, but fair tone. Do not be overly polite or chatty.
-    6. Keep your total response under 4-5 sentences so it can be easily spoken aloud by TTS.
-    """
+# ROLE
+You are Sarah Mitchell, a professional Technical Interviewer with 15+ years of experience hiring software engineers.
+Your job is NOT to be a friend, coach, cheerleader, or teacher.
+Your job is to accurately assess a candidate's employability, technical competence, communication ability, and professional readiness.
+
+# INTERVIEW START RULES
+When the interview begins (no history):
+- Introduce yourself: "Good morning. My name is Sarah Mitchell, and I'll be conducting your interview today."
+- Ask the candidate to introduce themselves: "Let's begin with a brief introduction about yourself. Please tell me about your background, education, projects, experience, and career goals."
+
+# INTERVIEW STYLE
+- Maintain a professional, polite, neutral, and analytical interview atmosphere.
+- Do NOT be a friend, mentor, or motivational speaker.
+- Do NOT use excessive encouragement or emojis.
+- Do NOT use casual language.
+- Ask only ONE question at a time.
+- Continuously adapt the difficulty: ask more challenging questions (architecture, tradeoffs, system design) to strong candidates, and foundational questions to weaker candidates.
+
+# FEEDBACK AND QUESTION FLOW
+- For every candidate response, briefly evaluate the answer professionally (1-2 sentences of direct feedback pointing out what was good or what was missing).
+- Then, immediately ask the next question.
+- Keep your total response under 4-5 sentences so it is concise and suitable for Text-to-Speech playback.
+"""
     
     # Try Gemini first if user selected it and client is configured
     gemini_client = get_gemini_client()
@@ -589,6 +709,66 @@ def verbal_report():
         return jsonify(report)
     except Exception as e:
         return jsonify({"error": f"Failed to parse Ollama JSON report: {str(e)}. Output was: {local_response}"}), 500
+
+def synthesize_text(text, base_filepath):
+    # Try Edge-TTS first (free, high quality neural voice)
+    try:
+        communicate = edge_tts.Communicate(text, "en-US-GuyNeural")
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(communicate.save(base_filepath))
+            loop.close()
+        except Exception:
+            asyncio.run(communicate.save(base_filepath))
+        return base_filepath, "audio/mpeg"
+    except Exception as edge_err:
+        print(f"[TTS WARNING] Edge-TTS failed: {edge_err}. Attempting pyttsx3 fallback.")
+        
+    # Fallback to local pyttsx3 (uses system's default TTS engine, e.g. SAPI5 on Windows)
+    try:
+        wav_path = base_filepath.replace(".mp3", ".wav")
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+        except ImportError:
+            pass
+        engine = pyttsx3.init()
+        engine.save_to_file(text, wav_path)
+        engine.runAndWait()
+        del engine
+        return wav_path, "audio/wav"
+    except Exception as py_err:
+        print(f"[TTS ERROR] pyttsx3 fallback failed: {py_err}")
+        raise py_err
+
+@app.route('/speak')
+def speak():
+    text = request.args.get('text', '')
+    if not text:
+        return "Missing text", 400
+        
+    # Create a unique temp file name
+    temp_dir = tempfile.gettempdir()
+    unique_id = os.urandom(8).hex()
+    base_path = os.path.join(temp_dir, f"lockedin_tts_{unique_id}.mp3")
+    
+    try:
+        final_path, mimetype = synthesize_text(text, base_path)
+        
+        @after_this_request
+        def remove_file(response):
+            try:
+                if os.path.exists(final_path):
+                    os.remove(final_path)
+            except Exception as e:
+                print(f"Error removing temporary audio file: {e}")
+            return response
+            
+        return send_file(final_path, mimetype=mimetype)
+    except Exception as e:
+        print(f"[TTS ERROR] Failed to synthesize text: {e}")
+        return jsonify({"error": "Failed to synthesize speech"}), 500
 
 if __name__ == '__main__':
     threading.Thread(target=lambda: (time.sleep(2), webbrowser.open("http://127.0.0.1:5000")), daemon=True).start()

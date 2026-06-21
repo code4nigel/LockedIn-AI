@@ -1,159 +1,125 @@
-# Project Current State: LockedIn
+# LockedIn AI: AI-Powered Adaptive Proctoring & Technical Interview Preparation Platform
 
-**LockedIn** is an AI-powered proctoring and interview preparation platform. It combines a Monaco-based coding environment with real-time computer vision (MediaPipe Face Mesh) and audio monitoring to simulate a secure exam environment, flag cheating behaviors (such as looking away, talking, multiple faces in frame, or switching browser tabs), and offer immediate technical/behavioral feedback powered by Google's Gemini API.
+**LockedIn AI** is a state-of-the-art educational and assessment platform designed to prepare candidates for high-stakes technical coding assessments and professional developer interviews. By combining a Monaco-based coding sandbox, real-time client-side computer vision (MediaPipe Face Mesh), and audio monitoring with interactive voice-enabled behavioral mock interviewers (Google Gemini API / local Ollama models), LockedIn AI delivers immediate, analytical, and security-centric feedback.
 
 ---
 
-## 1. Project Folder & File Structure
+## 🚀 Key Capabilities
 
-Here is the exact layout of the repository as it stands:
+### 1. Monaco Code Workspace & Isolated Sandbox
+*   **Professional IDE**: Implements Microsoft’s Monaco Editor with syntax highlighting, automatic indentation, and code autocompletion.
+*   **Local Compilation Sandbox**: Executes Python, Java, and JavaScript code locally in temporary directories (`tempfile.TemporaryDirectory`) using subprocesses.
+*   **Safety Constraints**: Enforces a strict $5.0$-second timeout to kill infinite loops and runs processes with `shell=False` to prevent command injection.
+*   **Adaptive Difficulty**: Dynamically upgrades exam challenges (Levels 1 to 5) as the user successfully passes test cases.
 
+### 2. Multi-Layered AI Proctoring System
+*   **Computer Vision Eye/Gaze Tracker**: Utilizes MediaPipe Face Mesh locally to identify head rotation and eye deviation. Triggers violations if the nose shifts outside the center frame or if the normalized iris-to-eye-corner ratio moves beyond the $[0.35, 0.65]$ threshold.
+*   **Audio Monitor**: Runs a background thread capturing real-time microphone buffers via PyAudio, calculating Root Mean Square (RMS) energy. Flags audio violations when speaking or background coaching exceeds threshold limits.
+*   **Keystroke Dynamics**: Tracks typing behavior; instantly flags copying and pasting of large code blocks ($>50$ characters) or unnatural keypress speeds ($<10\text{ms}$ intervals).
+*   **Window Tab Switching**: Listens to the browser's Page Visibility API and logs violations the moment a user minimizes the window or opens a secondary browser tab.
+
+### 3. Interactive Voice Mock Interview (LLM)
+*   **Professional Persona**: Simulates live interview panels with a strictly professional, non-cheerleader interviewer role prompt.
+*   **Dual LLM Integration**: Routes queries to Google Gemini 2.5 Flash for high-quality evaluations, or falls back dynamically to local Ollama endpoints (supporting `llama3.2:1b`, `qwen`, or `gemma4:e2b`).
+*   **Speech Synthesis & Recognition**: Translates candidate speech to text using the browser's Web Speech API, sends prompts to the LLM, and streams synthesized responses back. Includes natural Microsoft Edge-TTS streaming with a local native `pyttsx3` offline fallback.
+
+### 4. Advanced Analytics & Profiles (Version 3.0)
+*   **Profile Customization**: Users can edit usernames, update passwords, and upload custom profile pictures. Avatars are parsed into Base64 strings and stored directly in the SQLite `users` table.
+*   **6-Axis Radar Skill Chart**: Renders visual comparisons of user proficiency (Coding, Syntax, Speed, Aptitude, Communication, Integrity) against a standard Benchmark target.
+*   **Performance Line Graph**: Generates a cumulative time-series line chart (Level vs. Time) in the session details modal, showing precisely where candidates spent the most time compared to average benchmarks.
+*   **Local LLM Automation**: Programmatically spawns `ollama serve` on session start and terminates the background process on exit, saving system CPU and memory resources.
+
+---
+
+## 🛠️ Tech Stack
+
+*   **Frontend**: Vanilla HTML5, CSS3, Tailwind CSS, Monaco Editor API, Chart.js.
+*   **Backend**: Python 3.10+, Flask, SQLite.
+*   **AI/CV/Processing**: MediaPipe Face Mesh, OpenCV, NumPy, PyAudio, Edge-TTS, pyttsx3.
+*   **APIs**: Google GenAI SDK, local Ollama API (`/api/chat`).
+
+---
+
+## 📊 Database Relational Schema
+
+LockedIn AI uses a local SQLite database (`lockedin.db`) structured with three relational tables:
+
+```mermaid
+erDiagram
+    users {
+        int id PK
+        string username UNIQUE
+        string password
+        int total_points
+        string rank
+        string avatar
+    }
+    sessions {
+        int id PK
+        int user_id FK
+        int max_level
+        int violations
+        int syntax_errors
+        int logic_errors
+        string timestamp
+        string violation_logs
+        string level_times
+        string categories_completed
+        int aptitude_score
+        string behavioral_feedback
+    }
+    aptitude_questions {
+        int id PK
+        string question
+        string option_a
+        string option_b
+        string option_c
+        string option_d
+        string correct_answer
+        string category
+    }
+
+    users ||--o{ sessions : "attempts"
 ```
-LockedIn/
-├── .env                          # Local credentials (Gemini API Key, ElevenLabs API Key)
-├── .gitignore                    # Git ignore file (excludes venv, pycache, lockedin.db)
-├── lockedin.db                   # SQLite database file storing users, sessions, and questions
-├── README.md                     # Project README (currently empty)
-├── requirements.txt              # Python library dependencies
-├── venv/                         # Python virtual environment folder
-│
-├── backend/                      # Python Flask Backend
-│   ├── main.py                   # Standalone OpenCV webcam testing script
-│   ├── server.py                 # Main Flask server (APIs, auth, routing, Gemini integration)
-│   ├── database.py               # SQLite schema initialization, query utils, profile summaries
-│   │
-│   └── ai_proctor/               # Special AI Proctoring & Logic modules
-│       ├── __init__.py           # Package init
-│       ├── audio_monitor.py      # RMS-based sound levels and voice detection (PyAudio)
-│       ├── questions.py          # Adaptive coding challenges (Levels 1-5) and test cases
-│       ├── scorer.py             # Calculations for Cheat Score and Integrity Percentage
-│       └── tracker.py            # MediaPipe Face Mesh head-pose and iris-gaze tracking
-│
-├── frontend/                     # Vanilla HTML/JS UI Assets
-│   ├── index.html                # Single-page app (TailwindCSS, Monaco Editor, Chart.js, JS logic)
-│   └── fonts/                    # Custom styling fonts
-│       └── NatureBeautyPersonalUse-9Y2DK.ttf
-│
-├── gemini context/               # Project documentation & reference notes
-│   ├── architectural_patterns.md # Summary of global state, background workers, and isolation
-│   ├── gemini.md                 # Brief project summary, tech stack, and active branch info
-│   ├── planning.md               # Future features roadmap and design constraints
-│   │
-│   └── report/                   # Detailed academic-style documents
-│       ├── presentation.md       # 10-slide presentation outline with Mermaid Diagrams
-│       └── report.md             # In-depth technical project report with ER/DFD/Sequence diagrams
-│
-└── img/                          # Screenshots, mockups, and exported diagrams
-    ├── diagrams/                 # DFD, ER, Sequence, and System flow images and text files
-    └── [various UI images].png   # UI elements and page layout references
+
+### Table Definitions
+1.  **`users`**: Manages accounts, credentials, cumulative experience points (XP), ranks, and Base64 avatar images.
+2.  **`sessions`**: Logs historical test results, proctor flags, syntax/logic errors, elapsed time distributions, MCQ scores, and behavioral feedback summaries.
+3.  **`aptitude_questions`**: Houses multiple-choice CS aptitude questions divided by subjects (e.g. OS, Algorithms).
+
+---
+
+## ⚙️ Setup & Run Instructions
+
+### 1. Prerequisites
+Ensure you have Python 3.10+ installed and a webcam/microphone connected to your local machine.
+
+### 2. Environment Configuration
+Create a `.env` file in the root folder and add your credentials:
+```env
+GEMINI_API_KEY=your_google_gemini_api_key_here
 ```
 
----
-
-## 2. Component Analysis & Standings
-
-### A. Backend (`backend/`)
-- **`server.py`**: Serves as the central API gateway. It:
-  - Manages a thread-safe webcam instance using `threading.Lock()` to process and stream frames.
-  - Implements API endpoints for user registration, login, profile stats, question retrieval, verbal chat sessions, and behavioral evaluations.
-  - Hosts the `/run_code` execution endpoint, which compiles and runs student code locally (Python, Java, and JavaScript supported) inside a `tempfile.TemporaryDirectory` via Python's `subprocess.run` to securely check assertions.
-  - Integrates the `google-genai` SDK using `gemini-2.5-flash` for code evaluations and conversational behavioral interviews.
-- **`database.py`**: Initializes and updates the SQLite database. Configures default CS aptitude questions on startup and tracks points, ranks, and logs.
-- **`main.py`**: A CLI script designed for testing. It spins up the webcam, tracks eyes, checks noise levels, runs the adaptive difficulty loop, and exits with a command-line printout of the final integrity score.
-
-### B. AI Proctoring Module (`backend/ai_proctor/`)
-- **`tracker.py`**: Uses MediaPipe Face Mesh to identify head movements and eye direction. If the nose coordinate goes beyond `0.40 - 0.60` of the screen width, or the eye iris-to-eye-corner ratio moves outside the `0.35 - 0.65` normal boundary, the user is flagged as "Looking Away".
-- **`audio_monitor.py`**: Leverages PyAudio to capture microphone feeds. If the root-mean-square (RMS) level of the buffer spikes above `150` (configurable), a noise violation is recorded.
-- **`scorer.py`**: Translates violations (1 point per second eyes away, 2 points per audio spike, 5 points per second multiple faces) into a `cheat_score` (out of 100). The integrity score is calculated as `100 - cheat_score`.
-
-### C. Frontend UI (`frontend/`)
-- **`index.html`**: A comprehensive single-page web app built on TailwindCSS. Key interfaces include:
-  - **Workspace (Editor)**: Displays active coding questions, a camera feed showing proctoring states, a Monaco code editor, and console outputs. 
-  - **Career Hub (Dashboard)**: Provides user profiles, progression levels, a list of past attempts, and a custom Chart.js Radar Chart mapping mastery levels across topics like Arrays, DP, and Strings.
-  - **Core CS Aptitude**: Runs a timed 10-question multiple-choice exam, displaying immediate grade feedback upon completion.
-  - **Behavioral Mock**: An interactive vocal prep screen using the browser's Web Speech API (for input) and Text-to-Speech (for AI speech outputs) to simulate interviews with Gemini.
-- **Keystroke Dynamics**: Embedded JS inside Monaco detects unnatural keypress rates (< 10ms delay between keys) or large text block pastes (> 50 characters) and posts violations to the server.
-- **Tab Switching**: Monitors the document `visibilitychange` event to detect tab/window leaving.
-
----
-
-## 3. Database Schema
-
-The database `lockedin.db` contains three main tables:
-
-### 1. `users`
-Tracks individual accounts, accumulated experience points, and progression titles.
-- `id` (INTEGER, Primary Key)
-- `username` (TEXT, Unique)
-- `password` (TEXT, Hashed)
-- `total_points` (INTEGER, Default: 0)
-- `rank` (TEXT, e.g., 'Code Initiate', 'Syntax Soldier', 'Senior Scripter', 'Logic Master', '7-Star Architect')
-
-### 2. `sessions`
-Records performance stats and AI proctor flags for every test taken.
-- `id` (INTEGER, Primary Key)
-- `user_id` (INTEGER, Foreign Key referencing `users(id)`)
-- `max_level` (INTEGER)
-- `violations` (INTEGER)
-- `syntax_errors` (INTEGER)
-- `logic_errors` (INTEGER)
-- `violation_logs` (TEXT, JSON string)
-- `level_times` (TEXT, JSON string)
-- `categories_completed` (TEXT, JSON string)
-- `aptitude_score` (INTEGER, Nullable)
-- `behavioral_feedback` (TEXT, Nullable)
-- `timestamp` (DATETIME, Default: CURRENT_TIMESTAMP)
-
-### 3. `aptitude_questions`
-Maintains a pool of multiple-choice questions for CS quizzes.
-- `id` (INTEGER, Primary Key)
-- `question` (TEXT)
-- `option_a` (TEXT)
-- `option_b` (TEXT)
-- `option_c` (TEXT)
-- `option_d` (TEXT)
-- `correct_answer` (TEXT)
-- `category` (TEXT)
-
----
-
-## 4. Run & Stop Commands
-
-### Setup & Activation
-Before running either component, ensure you have the virtual environment activated and dependencies installed:
+### 3. Installation
+Activate your virtual environment and install the required dependencies:
 ```powershell
-# 1. Activate Virtual Environment (Windows PowerShell)
+# Activate Virtual Environment (Windows PowerShell)
 .\venv\Scripts\Activate.ps1
 
-# 2. Verify / Install Dependencies
+# Install Pinned Package Dependencies
 pip install -r requirements.txt
 ```
 
-### Option A: The Full Web Application (Frontend + Backend)
-*Runs the Flask server which serves the web application, handles authentication, runs the code compiler, and coordinates Gemini AI features.*
+### 4. Running the Web Application
+Start the backend server, which automatically initializes the database, validates dependencies, and launches the web interface:
+```powershell
+python backend/server.py
+```
+Open your web browser and navigate to `http://127.0.0.1:5000`.
 
-- **Starting Command:**
-  ```powershell
-  python backend/server.py
-  ```
-  *Note: Upon starting, the script will wait 2 seconds and then automatically launch the interface in your default browser at `http://127.0.0.1:5000`.*
-  
-- **Ending/Stopping Command:**
-  To stop the web application, focus on the terminal running the server and press:
-  ```
-  Ctrl + C
-  ```
-
-### Option B: Local Proctor Test (CLI Utility)
-*Launches a standalone window containing the OpenCV webcam feed, testing face/eye/audio tracking algorithms, and printing output directly to the terminal console.*
-
-- **Starting Command:**
-  ```powershell
-  python backend/main.py
-  ```
-  
-- **Ending/Stopping Command:**
-  To close the CV2 camera feed and exit the monitoring loop, focus on the open camera window and press:
-  ```
-  Esc (Escape key)
-  ```
+### 5. Running local Proctor Test (CLI Utility)
+To test face mesh tracking, eye gaze vectors, and noise detection filters in a standalone OpenCV test frame:
+```powershell
+python backend/main.py
+```
+*Press the `Esc` key on the OpenCV camera window to close the utility.*

@@ -110,16 +110,15 @@ LockedIn AI is an all-in-one web application that offers three primary preparati
 LockedIn AI uses a **Client-Server Architecture** with decoupled responsibilities. The frontend handles code input, webcam rendering, user interaction, and data visualization. The backend manages authentication, runs computer vision/audio threads, processes raw code submissions in temporary sandboxes, and acts as the gateway to the Gemini/Ollama LLM engines.
 
 ### High-Level System Architecture Diagram
-```mermaid
 graph TD
-    subgraph Client [Frontend UI - Browser]
+    subgraph Client [Frontend UI]
         A[Monaco Code Workspace]
         B[Video & Audio Capture]
         C[Keystroke & Tab Monitor]
         D[Chart.js Skill Dashboard]
     end
 
-    subgraph Server [Backend - Flask Engine]
+    subgraph Server [Backend Engine]
         E[Flask Router /server.py]
         F[Face & Iris Tracker /tracker.py]
         G[Audio Monitor Thread /audio_monitor.py]
@@ -127,7 +126,7 @@ graph TD
         I[SQLite DB /database.py]
     end
 
-    subgraph Cloud [External APIs / Engines]
+    subgraph Cloud [External Services]
         J[Google Gemini API]
         K[Local Ollama Service]
     end
@@ -145,7 +144,6 @@ graph TD
     
     I -->|User Profile & History| D
     E -->|Compiled Test Outputs & AI Feedback| A
-```
 
 ### Component Breakdown
 *   **Webcam Stream Generator (`generate_frames`)**: Captures video, routes frames through MediaPipe, overlays the proctoring status, and yields MJPEG streams using `Multipart/x-mixed-replace`.

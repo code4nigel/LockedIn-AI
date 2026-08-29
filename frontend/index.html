@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>LockedIn | 7-Star Editor</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <!-- Added Chart.js for Advanced Analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <style>
         body { background: #0a0a0a; color: #d4d4d8; height: 100vh; overflow: hidden; display: flex; flex-direction: column; margin: 0; }
         .pane-container { height: calc(100vh - 56px); display: flex; overflow: hidden; }
@@ -82,6 +83,51 @@
         </div>
     </div>
 
+    <!-- EDIT PROFILE MODAL -->
+    <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black/90 z-[200] flex items-center justify-center modal-blur">
+        <div class="bg-[#0f0f0f] border border-zinc-800 rounded-md w-[450px] shadow-2xl overflow-hidden">
+            <div class="p-6 border-b border-zinc-800 flex justify-between items-center bg-[#0a0a0a]">
+                <h3 class="text-white text-lg font-black tracking-tighter text-blue-500 uppercase">Edit Profile</h3>
+                <button onclick="closeModal('edit-profile-modal')" class="text-zinc-500 hover:text-white transition p-2 bg-zinc-900 rounded-full border border-zinc-800 hover:bg-zinc-800">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 flex flex-col gap-4">
+                <div id="profile-error" class="hidden bg-red-900/20 border border-red-900/50 text-red-500 text-[10px] font-bold uppercase tracking-widest p-3 rounded text-center"></div>
+                <div id="profile-success" class="hidden bg-green-900/20 border border-green-900/50 text-green-400 text-[10px] font-bold uppercase tracking-widest p-3 rounded text-center"></div>
+                
+                <!-- Avatar Upload & Preview -->
+                <div class="flex flex-col items-center gap-3">
+                    <div class="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner overflow-hidden relative">
+                        <svg id="edit-default-avatar" class="w-10 h-10 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        <img id="edit-custom-avatar" class="w-full h-full object-cover hidden" />
+                    </div>
+                    <label class="px-4 py-2 border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-md text-[11px] font-bold uppercase tracking-widest cursor-pointer transition">
+                        Upload Picture
+                        <input type="file" id="edit-avatar-input" accept="image/*" class="hidden" onchange="handleAvatarChange(event)">
+                    </label>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Username</label>
+                    <input type="text" id="edit-username" placeholder="Enter username" class="w-full bg-zinc-900 border border-zinc-800 rounded-md px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono">
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">New Password (Leave blank to keep current)</label>
+                    <input type="password" id="edit-password" placeholder="Enter new password" class="w-full bg-zinc-900 border border-zinc-800 rounded-md px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Confirm New Password</label>
+                    <input type="password" id="edit-confirm-password" placeholder="Confirm new password" class="w-full bg-zinc-900 border border-zinc-800 rounded-md px-4 py-3 text-sm text-zinc-200 outline-none focus:border-blue-500 transition font-mono">
+                </div>
+                
+                <button onclick="saveProfileChanges()" class="w-full px-6 py-3 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-widest transition shadow-lg mt-2">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- TOP BAR -->
     <header class="h-14 border-b border-zinc-800 flex justify-between items-center px-6 bg-[#0f0f0f] shrink-0">
         <div class="flex items-center gap-6">
@@ -103,6 +149,18 @@
             <div id="timer-badge" class="hidden items-center gap-2 px-4 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 font-mono text-sm tracking-widest transition-all duration-300">
                 <svg id="timer-icon" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <span id="timer-text" class="timer-default font-bold">00:00</span>
+            </div>
+            
+            <!-- Model Selection Dropdown -->
+            <div class="relative inline-block text-left" id="model-selector-container">
+                <select id="ai-model-select" onchange="changeModelPreference()" class="appearance-none bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 px-4 py-2 pr-8 rounded-md text-[10px] font-bold uppercase tracking-widest outline-none transition cursor-pointer">
+                    <option value="gemini" selected>☁️ Gemini Cloud</option>
+                    <option value="ollama">💻 Ollama Local</option>
+                </select>
+                <!-- Custom Arrow indicator -->
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-zinc-500">
+                    <svg class="fill-current h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                </div>
             </div>
             
             <button id="toggleBtn" onclick="toggleTest()" class="px-6 py-2 rounded-md bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white text-[11px] font-bold uppercase tracking-widest transition shadow-lg">START SESSION</button>
@@ -229,11 +287,17 @@
                 </button>
 
                 <div class="flex items-center gap-6 mt-2">
-                    <div class="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner">
-                        <svg class="w-10 h-10 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    <div class="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner overflow-hidden" id="prof-avatar-container">
+                        <svg id="prof-default-avatar" class="w-10 h-10 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        <img id="prof-custom-avatar" class="w-full h-full object-cover hidden" />
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-white tracking-tight" id="prof-name">Developer</h2>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-3xl font-black text-white tracking-tight" id="prof-name">Developer</h2>
+                            <button onclick="openEditProfileModal()" class="text-zinc-400 hover:text-white transition p-1.5 bg-zinc-900 rounded-lg border border-zinc-800 hover:bg-zinc-800 flex items-center justify-center mt-1" title="Edit Profile">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                        </div>
                         <div class="flex items-center gap-3 mt-2">
                             <span class="px-3 py-1 rounded bg-blue-900/30 border border-blue-800/50 text-blue-400 text-[10px] font-bold uppercase tracking-widest" id="prof-rank">Code Initiate</span>
                             <span class="text-zinc-500 text-xs font-mono" id="prof-points">0 EXP</span>
@@ -584,7 +648,7 @@
                 <div>
                     <h4 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 px-1">Performance Curve: Time per Level</h4>
                     <div class="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-6 h-[300px] w-full relative">
-                        <canvas id="sessionGraph" style="width: 100%; height: 100%;"></canvas>
+                        <canvas id="sessionGraph"></canvas>
                     </div>
                 </div>
             </div>
@@ -600,8 +664,134 @@
         let isLoginMode = true;
         let chartInstance = null;
         let performanceChartInstance = null; 
+        
+        // --- Model Preference Handlers ---
+        function changeModelPreference() {
+            const select = document.getElementById('ai-model-select');
+            if (select) {
+                localStorage.setItem('selected_ai_model', select.value);
+                console.log("AI Model selected:", select.value);
+            }
+        }
+        
+        function getModelPreference() {
+            return localStorage.getItem('selected_ai_model') || 'gemini';
+        }
+        
+        // Initialize dropdown selection
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedModel = getModelPreference();
+            const select = document.getElementById('ai-model-select');
+            if (select) select.value = savedModel;
+        });
+
         window.userHistoryData = []; 
         let lastKeystrokeTime = 0;
+        let uploadedAvatarBase64 = null;
+
+        function handleAvatarChange(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                uploadedAvatarBase64 = evt.target.result;
+                
+                const previewImg = document.getElementById('edit-custom-avatar');
+                const defaultSvg = document.getElementById('edit-default-avatar');
+                
+                previewImg.src = uploadedAvatarBase64;
+                previewImg.classList.remove('hidden');
+                defaultSvg.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function openEditProfileModal() {
+            const currentName = document.getElementById('prof-name').innerText;
+            document.getElementById('edit-username').value = currentName;
+            document.getElementById('edit-password').value = "";
+            document.getElementById('edit-confirm-password').value = "";
+            document.getElementById('profile-error').classList.add('hidden');
+            document.getElementById('profile-success').classList.add('hidden');
+            
+            const profCustomAvatar = document.getElementById('prof-custom-avatar');
+            const editCustomAvatar = document.getElementById('edit-custom-avatar');
+            const editDefaultAvatar = document.getElementById('edit-default-avatar');
+            
+            if (profCustomAvatar && !profCustomAvatar.classList.contains('hidden')) {
+                uploadedAvatarBase64 = profCustomAvatar.src;
+                editCustomAvatar.src = uploadedAvatarBase64;
+                editCustomAvatar.classList.remove('hidden');
+                editDefaultAvatar.classList.add('hidden');
+            } else {
+                uploadedAvatarBase64 = null;
+                editCustomAvatar.classList.add('hidden');
+                editDefaultAvatar.classList.remove('hidden');
+            }
+            
+            openModal('edit-profile-modal');
+        }
+
+        async function saveProfileChanges() {
+            const username = document.getElementById('edit-username').value.trim();
+            const password = document.getElementById('edit-password').value.trim();
+            const confirmPassword = document.getElementById('edit-confirm-password').value.trim();
+            const err = document.getElementById('profile-error');
+            const success = document.getElementById('profile-success');
+            
+            err.classList.add('hidden');
+            success.classList.add('hidden');
+            
+            if (!username) {
+                err.innerText = "Username is required.";
+                err.classList.remove('hidden');
+                return;
+            }
+            
+            if (password || confirmPassword) {
+                if (password !== confirmPassword) {
+                    err.innerText = "Passwords do not match.";
+                    err.classList.remove('hidden');
+                    return;
+                }
+                if (password.length < 4) {
+                    err.innerText = "Password must be at least 4 characters long.";
+                    err.classList.remove('hidden');
+                    return;
+                }
+            }
+            
+            try {
+                const res = await fetch('/update_profile', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: username,
+                        avatar: uploadedAvatarBase64,
+                        password: password ? password : null
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    success.innerText = "Profile updated successfully!";
+                    success.classList.remove('hidden');
+                    
+                    // Reload profile card and details
+                    await loadProfile();
+                    
+                    setTimeout(() => {
+                        closeModal('edit-profile-modal');
+                    }, 800);
+                } else {
+                    err.innerText = data.message || "Failed to update profile.";
+                    err.classList.remove('hidden');
+                }
+            } catch(e) {
+                err.innerText = "An error occurred while saving profile settings.";
+                err.classList.remove('hidden');
+            }
+        }
 
         require(['vs/editor/editor.main'], () => {
             editor = monaco.editor.create(document.getElementById('monaco-anchor'), {
@@ -792,7 +982,8 @@
             } else if(tab === 'dashboard') {
                 tabDash.className = "text-xs font-bold uppercase tracking-widest text-blue-500 border-b-2 border-blue-500 px-2 h-full";
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
-                loadProfile(); 
+                // Wait 100ms so CSS display none is absolutely gone before ChartJS calculates size
+                setTimeout(loadProfile, 100);
             } else {
                 // For aptitude/verbal, hide standard tabs
                 tabEd.className = "text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white px-2 border-b-2 border-transparent h-full transition";
@@ -801,6 +992,75 @@
         }
 
         let skillChartInstance = null;
+
+        function calculateUserSkillMetrics() {
+            const history = window.userHistoryData || [];
+            
+            let techSessions = history.filter(s => !s.behavioral_feedback && s.aptitude_score === null);
+            let aptSessions = history.filter(s => s.aptitude_score !== null);
+            let behSessions = history.filter(s => s.behavioral_feedback !== null);
+            
+            // 1. Coding Logic: average max_level from technical coding (range 1-10)
+            let avgMaxLevel = 2.0; // Baseline
+            if (techSessions.length > 0) {
+                let sum = techSessions.reduce((acc, s) => acc + (s.max_level || 1), 0);
+                avgMaxLevel = sum / techSessions.length;
+            }
+            
+            // 2. Syntax Precision: 10 - average syntax errors (max 10)
+            let avgSyntax = 9.0; // Baseline
+            if (techSessions.length > 0) {
+                let sum = techSessions.reduce((acc, s) => acc + (s.syntax_errors || 0), 0);
+                avgSyntax = Math.max(2, 10 - (sum / techSessions.length));
+            }
+            
+            // 3. Speed & Efficiency: 10 - avg time per level in mins (max 10)
+            let avgSpeed = 7.5; // Baseline
+            if (techSessions.length > 0) {
+                let totalTime = 0;
+                let levelCount = 0;
+                techSessions.forEach(s => {
+                    try {
+                        let times = JSON.parse(s.level_times || "[]");
+                        if (times.length > 0) {
+                            totalTime += times.reduce((a, b) => a + b, 0);
+                            levelCount += times.length;
+                        }
+                    } catch(e) {}
+                });
+                if (levelCount > 0) {
+                    let avgTimePerLevel = totalTime / levelCount;
+                    avgSpeed = Math.max(1, Math.min(10, 10 - (avgTimePerLevel * 1.5)));
+                }
+            }
+            
+            // 4. Aptitude & Math: average aptitude score (range 0-10)
+            let avgAptitude = 6.0; // Baseline
+            if (aptSessions.length > 0) {
+                let sum = aptSessions.reduce((acc, s) => acc + (s.aptitude_score || 0), 0);
+                avgAptitude = sum / aptSessions.length;
+            }
+            
+            // 5. Communication: 8.0 baseline if they did a behavioral interview, otherwise 4.0
+            let avgCommunication = behSessions.length > 0 ? 8.2 : 5.0;
+            
+            // 6. Integrity & Focus: 10 - average violations (max 10)
+            let avgIntegrity = 10.0;
+            if (history.length > 0) {
+                let sum = history.reduce((acc, s) => acc + (s.violations || 0), 0);
+                avgIntegrity = Math.max(1, 10 - (sum / history.length));
+            }
+            
+            return [
+                parseFloat(avgMaxLevel.toFixed(1)),
+                parseFloat(avgSyntax.toFixed(1)),
+                parseFloat(avgSpeed.toFixed(1)),
+                parseFloat(avgAptitude.toFixed(1)),
+                parseFloat(avgCommunication.toFixed(1)),
+                parseFloat(avgIntegrity.toFixed(1))
+            ];
+        }
+
         function renderSkillChart(stats) {
             try {
                 if (typeof Chart === 'undefined') {
@@ -813,8 +1073,9 @@
                 
                 if (skillChartInstance) skillChartInstance.destroy();
 
-                const categories = Object.keys(stats).length > 0 ? Object.keys(stats) : ["Arrays", "Strings", "DP", "Graphs", "Trees", "Sorting"];
-                const values = categories.map(cat => stats[cat] || 0);
+                const categories = ["Coding Logic", "Syntax Precision", "Speed & Efficiency", "Aptitude & Math", "Communication", "Integrity & Focus"];
+                const userMetrics = calculateUserSkillMetrics();
+                const benchmarkMetrics = [8.0, 9.0, 8.5, 8.0, 8.5, 9.5];
                 
                 // AI Recommendation logic based on stats
                 const statEntries = Object.entries(stats);
@@ -832,32 +1093,59 @@
                     type: 'radar',
                     data: {
                         labels: categories,
-                        datasets: [{
-                            label: 'Mastery Level',
-                            data: values,
-                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                            borderColor: '#3b82f6',
-                            pointBackgroundColor: '#3b82f6',
-                            pointBorderColor: '#fff',
-                            pointHoverBackgroundColor: '#fff',
-                            pointHoverBorderColor: '#3b82f6',
-                            borderWidth: 2
-                        }]
+                        datasets: [
+                            {
+                                label: 'Your Stats',
+                                data: userMetrics,
+                                backgroundColor: 'rgba(236, 72, 153, 0.2)', // Pink transparent
+                                borderColor: '#ec4899', // Hot Pink
+                                pointBackgroundColor: '#ec4899',
+                                pointBorderColor: '#fff',
+                                pointHoverBackgroundColor: '#fff',
+                                pointHoverBorderColor: '#ec4899',
+                                borderWidth: 3
+                            },
+                            {
+                                label: 'Benchmark Target',
+                                data: benchmarkMetrics,
+                                backgroundColor: 'rgba(59, 130, 246, 0.15)', // Blue transparent
+                                borderColor: '#3b82f6', // Cool Blue
+                                pointBackgroundColor: '#3b82f6',
+                                pointBorderColor: '#fff',
+                                pointHoverBackgroundColor: '#fff',
+                                pointHoverBorderColor: '#3b82f6',
+                                borderWidth: 2,
+                                borderDash: [4, 4]
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: { display: false }
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#a1a1aa',
+                                    font: { family: 'Inter', size: 10, weight: 'bold' }
+                                }
+                            }
                         },
                         scales: {
                             r: {
-                                angleLines: { color: 'rgba(63, 63, 70, 0.5)' },
-                                grid: { color: 'rgba(63, 63, 70, 0.5)' },
-                                pointLabels: { color: '#a1a1aa', font: { size: 10, weight: 'bold' } },
-                                ticks: { display: false, stepSize: 1 },
+                                angleLines: { color: 'rgba(20, 184, 166, 0.25)' }, // Teal/cyan angle lines
+                                grid: { color: 'rgba(20, 184, 166, 0.25)' }, // Teal/cyan grid lines
+                                pointLabels: {
+                                    color: '#d4d4d8',
+                                    font: { family: 'Inter', size: 10, weight: 'bold' }
+                                },
+                                ticks: {
+                                    display: false,
+                                    stepSize: 2
+                                },
                                 suggestedMin: 0,
-                                suggestedMax: 5
+                                suggestedMax: 10
                             }
                         }
                     }
@@ -878,6 +1166,18 @@
                 document.getElementById('prof-rank').innerText = data.user.rank;
                 document.getElementById('prof-points').innerText = data.user.total_points + " EXP";
                 document.getElementById('prof-count').innerText = data.total_sessions;
+                
+                // Set Profile Avatar
+                const profDefaultAvatar = document.getElementById('prof-default-avatar');
+                const profCustomAvatar = document.getElementById('prof-custom-avatar');
+                if (data.user.avatar) {
+                    profCustomAvatar.src = data.user.avatar;
+                    profCustomAvatar.classList.remove('hidden');
+                    profDefaultAvatar.classList.add('hidden');
+                } else {
+                    profCustomAvatar.classList.add('hidden');
+                    profDefaultAvatar.classList.remove('hidden');
+                }
                 
                 if (data.category_stats) renderSkillChart(data.category_stats);
                 
@@ -1007,54 +1307,62 @@
             if (performanceChartInstance) performanceChartInstance.destroy();
 
             const points = Math.max(3, parseInt(maxLevel) || 1);
-            const labels = Array.from({length: points}, (_, i) => `Lvl ${i+1}`);
             
             let userData = [];
             try {
-                if (levelTimesStr && levelTimesStr !== "[]") {
-                    const times = JSON.parse(levelTimesStr);
-                    // Use actual times per level, not cumulative
-                    userData = times.map(t => parseFloat(parseFloat(t).toFixed(1)));
+                if (levelTimesStr) {
+                    let times = typeof levelTimesStr === 'string' ? JSON.parse(levelTimesStr) : levelTimesStr;
+                    if (Array.isArray(times)) {
+                        userData = times.map(t => parseFloat(t));
+                    }
                 }
             } catch (e) { console.error("Level times parse error:", e); }
 
-            // If user didn't complete a level or data is missing, pad or mock
+            // If user didn't complete a level or data is missing, pad or use default
             if (userData.length === 0) {
-                console.log("No user data, using mock data for visualization");
-                userData = labels.map((_, i) => parseFloat((2.0 + Math.random() * 3).toFixed(1)));
-            } else {
-                while (userData.length < points) {
-                    userData.push(0); // Pad with zeros for levels not reached
-                }
+                userData = [1.2, 1.8, 2.5]; // Realistic mock levels
             }
 
-            const globalData = labels.map((_, i) => parseFloat((1.5 + Math.random() * 1.5).toFixed(1)));
+            // Build cumulative data points: {x: elapsed_time, y: level}
+            let userPoints = [{x: 0, y: 0}];
+            let cumulativeTime = 0;
+            userData.forEach((timeSpent, i) => {
+                cumulativeTime += timeSpent;
+                userPoints.push({x: parseFloat(cumulativeTime.toFixed(2)), y: i + 1});
+            });
+
+            // Benchmark data points (assuming 1.8 minutes average per level)
+            let benchmarkPoints = [{x: 0, y: 0}];
+            let benchmarkCumulative = 0;
+            userData.forEach((_, i) => {
+                benchmarkCumulative += 1.8;
+                benchmarkPoints.push({x: parseFloat(benchmarkCumulative.toFixed(2)), y: i + 1});
+            });
 
             performanceChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
                     datasets: [
                         {
-                            label: 'Your Time (mins)',
-                            data: userData,
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            label: 'Your Progress',
+                            data: userPoints,
+                            borderColor: '#06b6d4', // Premium Cyan
+                            backgroundColor: 'rgba(6, 182, 212, 0.08)',
                             borderWidth: 3,
                             fill: true,
-                            tension: 0.4,
-                            pointBackgroundColor: '#10b981',
+                            tension: 0.35, // Smooth curves
+                            pointBackgroundColor: '#06b6d4',
                             pointBorderColor: '#fff',
                             pointHoverRadius: 6
                         },
                         {
-                            label: 'Avg. Dev Time',
-                            data: globalData,
-                            borderColor: '#a1a1aa',
+                            label: 'Average Developer',
+                            data: benchmarkPoints,
+                            borderColor: '#71717a', // Zinc Grey
                             borderWidth: 2,
                             borderDash: [5, 5],
                             fill: false,
-                            tension: 0.4,
+                            tension: 0.35,
                             pointRadius: 0
                         }
                     ]
@@ -1065,18 +1373,49 @@
                     animation: { duration: 1000 },
                     plugins: {
                         legend: { labels: { color: '#d4d4d8', font: { family: 'Inter', size: 10 } } },
-                        tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#fff', bodyColor: '#10b981', padding: 10, cornerRadius: 8 }
+                        tooltip: { 
+                            backgroundColor: 'rgba(0,0,0,0.85)', 
+                            titleColor: '#fff', 
+                            bodyColor: '#06b6d4', 
+                            padding: 10, 
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    let minutes = context.parsed.x;
+                                    let m = Math.floor(minutes);
+                                    let s = Math.round((minutes - m) * 60);
+                                    if (s < 10) s = '0' + s;
+                                    return `${context.dataset.label}: Level ${context.parsed.y} reached at ${m}:${s}`;
+                                }
+                            }
+                        }
                     },
                     scales: {
                         y: { 
-                            beginAtZero: true,
+                            title: { display: true, text: 'Level Reached', color: '#71717a', font: { size: 10 } },
                             grid: { color: '#27272a', drawBorder: false }, 
-                            ticks: { color: '#a1a1aa', font: { family: 'Inter', size: 10 } },
-                            title: { display: true, text: 'Time Taken (mins)', color: '#71717a', font: { size: 10 } }
+                            ticks: { 
+                                color: '#a1a1aa', 
+                                stepSize: 1,
+                                font: { family: 'Inter', size: 10 } 
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: points
                         },
                         x: { 
+                            type: 'linear',
+                            title: { display: true, text: 'Elapsed Time (mins:secs)', color: '#71717a', font: { size: 10 } },
                             grid: { color: '#27272a', drawBorder: false }, 
-                            ticks: { color: '#a1a1aa', font: { family: 'Inter', size: 10 } } 
+                            ticks: { 
+                                color: '#a1a1aa', 
+                                font: { family: 'Inter', size: 10 },
+                                callback: function(value) {
+                                    let mins = Math.floor(value);
+                                    let secs = Math.round((value - mins) * 60);
+                                    if (secs < 10) secs = '0' + secs;
+                                    return `${mins}:${secs}`;
+                                }
+                            } 
                         }
                     }
                 }
@@ -1204,6 +1543,10 @@
             clearInterval(statusTimer);
             clearInterval(testTimer);
             if (window.speechSynthesis) window.speechSynthesis.cancel();
+            if (window.activeAudio) {
+                window.activeAudio.pause();
+                window.activeAudio = null;
+            }
             
             // UI RESET LOGIC TO MATCH INITIAL STATE
             const feed = document.getElementById('feed');
@@ -1390,7 +1733,8 @@
                         code: editor.getValue(),
                         language: document.getElementById('lang-select').value,
                         question_id: currentQuestion.id,
-                        history: aiChatHistory
+                        history: aiChatHistory,
+                        model_preference: getModelPreference()
                     })
                 });
                 const data = await res.json();
@@ -1619,7 +1963,7 @@
                 const res = await fetch('/verbal_chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ prompt: userText, history: verbalHistory })
+                    body: JSON.stringify({ prompt: userText, history: verbalHistory, model_preference: getModelPreference() })
                 });
                 const data = await res.json();
                 
@@ -1640,11 +1984,23 @@
             document.getElementById('verbal-status').innerText = "Click 'Start Speaking' to reply...";
         }
 
+        window.activeAudio = null;
         function speakText(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-            window.speechSynthesis.speak(utterance);
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            if (window.activeAudio) {
+                window.activeAudio.pause();
+                window.activeAudio = null;
+            }
+            
+            const url = `/speak?text=${encodeURIComponent(text)}&t=${Date.now()}`;
+            window.activeAudio = new Audio(url);
+            window.activeAudio.play().catch(e => {
+                console.error("Local/Edge audio playback failed, falling back to Web Speech API", e);
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            });
         }
 
         async function endVerbalSession() {
@@ -1652,6 +2008,10 @@
             clearInterval(statusTimer);
             clearInterval(testTimer);
             if (window.speechSynthesis) window.speechSynthesis.cancel();
+            if (window.activeAudio) {
+                window.activeAudio.pause();
+                window.activeAudio = null;
+            }
             
             document.getElementById('verbal-status').innerText = "Generating Final Report...";
             
@@ -1659,7 +2019,7 @@
                 const res = await fetch('/verbal_report', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ history: verbalHistory })
+                    body: JSON.stringify({ history: verbalHistory, model_preference: getModelPreference() })
                 });
                 const data = await res.json();
                 

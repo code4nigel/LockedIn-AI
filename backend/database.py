@@ -16,6 +16,10 @@ def init_db():
             rank TEXT DEFAULT 'Code Initiate'
         )
     ''')
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT NULL")
+    except sqlite3.OperationalError:
+        pass # Column already exists
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,10 +161,10 @@ def save_session(user_id, max_level, violations, syntax, logic, violation_logs="
     cursor.execute("SELECT total_points FROM users WHERE id = ?", (user_id,))
     total = cursor.fetchone()[0]
     new_rank = "Code Initiate"
-    if total > 10000: new_rank = "7-Star Architect"
-    elif total > 5000: new_rank = "Logic Master"
-    elif total > 2000: new_rank = "Senior Scripter"
-    elif total > 500: new_rank = "Syntax Soldier"
+    if total >= 4000: new_rank = "7-Star Architect"
+    elif total >= 1500: new_rank = "Logic Master"
+    elif total >= 600: new_rank = "Senior Scripter"
+    elif total >= 200: new_rank = "Syntax Soldier"
 
     cursor.execute("UPDATE users SET rank = ? WHERE id = ?", (new_rank, user_id))
     conn.commit()
@@ -171,7 +175,7 @@ def get_profile(user_id):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, username, total_points, rank FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id, username, total_points, rank, avatar FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
     if not user:
         conn.close()
